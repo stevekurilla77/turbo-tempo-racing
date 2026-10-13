@@ -439,7 +439,7 @@ function nearestIdx(c) {
 function angDiff(a, b) { let d = a - b; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d; }
 function steerTo(c, tx, tz) { return Math.max(-1, Math.min(1, -angDiff(Math.atan2(tx - c.x, tz - c.z), c.h) * 2.5)); }
 function trackPt(i, lane) { i = ((i % N) + N) % N; return [P[i].x + S[i].x * lane, P[i].z + S[i].z * lane]; }
-function progress(c) { return c.lap * N + c.idx + (c.finished ? 1e6 - c.finishTime : 0); }
+function progress(c) { return c.finished ? 1e7 - c.finishTime : c.lap * N + c.idx; }
 function gap(a, b) { let d = (progress(b) - progress(a)); return d * SEG; } // + if b is ahead of a (units)
 function rubber(c) { const d = (progress(player) - progress(c)) / N; return 1 + Math.max(-.04, Math.min(.04, d * .08)); }
 function nearPlayer(c, r) { return Math.hypot(c.x - player.x, c.z - player.z) < r; }
