@@ -143,11 +143,27 @@ for (let i = 5; i < N; i += 30) for (const sd of [-1, 1]) {
 // ---------- audio ----------
 let AC = null, master, musicGain;
 const NOTE = { C: 261.63, D: 293.66, E: 329.63, F: 349.23, G: 392.0, A: 440.0, B: 493.88 };
+// iOS-robust audio unlock: must run synchronously inside a user gesture
+let silentEl = null;
+function silentWavUrl() { const n = 800, b = new ArrayBuffer(44 + n * 2), v = new DataView(b), w = (o, t) => [...t].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  w(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); w(8, 'WAVEfmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+  v.setUint32(24, 8000, true); v.setUint32(28, 16000, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true); w(36, 'data'); v.setUint32(40, n * 2, true);
+  return URL.createObjectURL(new Blob([b], { type: 'audio/wav' })); }
 function initAudio() {
-  if (AC) return; AC = new (window.AudioContext || window.webkitAudioContext)();
-  master = AC.createGain(); master.gain.value = .55; master.connect(AC.destination);
-  musicGain = AC.createGain(); musicGain.gain.value = .5; musicGain.connect(master);
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (_) {} // iOS 17+: ignore silent switch
+  if (!silentEl) { try { silentEl = document.createElement('audio'); silentEl.src = silentWavUrl(); silentEl.loop = true; silentEl.setAttribute('playsinline', ''); silentEl.setAttribute('x-webkit-airplay', 'deny'); silentEl.preload = 'auto'; document.body.appendChild(silentEl); } catch (_) {} }
+  if (silentEl && silentEl.paused) { const pr = silentEl.play(); if (pr && pr.catch) pr.catch(() => {}); } // older iOS: media playback flips the session out of "ambient"
+  if (!AC) {
+    AC = new (window.AudioContext || window.webkitAudioContext)();
+    master = AC.createGain(); master.gain.value = .55; master.connect(AC.destination);
+    musicGain = AC.createGain(); musicGain.gain.value = .5; musicGain.connect(master);
+  }
+  if (AC.state !== 'running') { const pr = AC.resume(); if (pr && pr.catch) pr.catch(() => {}); }
+  try { const sb = AC.createBufferSource(); sb.buffer = AC.createBuffer(1, 1, 22050); sb.connect(AC.destination); sb.start(0); } catch (_) {}
 }
+for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { if (!AC || AC.state !== 'running' || (silentEl && silentEl.paused)) initAudio(); }, { capture: true, passive: true });
+document.addEventListener('visibilitychange', () => { if (!AC) return; if (document.hidden) { AC.suspend && AC.suspend().catch(() => {}); } else if (race.musicOn) { initAudio(); nextT = AC.currentTime + .1; } });
+setInterval(() => { if (AC && AC.state !== 'running' && !document.hidden && race.musicOn) { AC.resume().catch(() => {}); } }, 1000);
 function brass(f, t, dur, vol, out = master, bright = 2600) {
   const o1 = AC.createOscillator(), o2 = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
   o1.type = 'sawtooth'; o2.type = 'sawtooth'; o1.frequency.value = f; o2.frequency.value = f * 1.004;
@@ -172,7 +188,9 @@ const mf = m => 440 * Math.pow(2, (m - 69) / 12);
 let step = 0, nextT = 0, sections = 4;
 function schedMusic() {
   if (!AC || !race.musicOn) return;
-  while (nextT < AC.currentTime + .15) {
+  if (AC.state !== 'running') return;
+  if (nextT < AC.currentTime - .2) nextT = AC.currentTime + .05; // resumed after a pause: don't burst
+  while (nextT < AC.currentTime + .15) { window.__tt.musicSteps = (window.__tt.musicSteps || 0) + 1;
     const bar = Math.floor(step / 16) % 4, s = step % 16, ch = CHORDS[bar];
     if (s % 4 === 0) drum(nextT, 'kick');
     if (s === 4 || s === 12 || (s === 14 && bar === 3)) drum(nextT, 'snare');
@@ -184,7 +202,7 @@ function schedMusic() {
     nextT += STEP; step++;
   }
 }
-function sfx(f, dur = .35, vol = .25) { if (AC) brass(f, AC.currentTime, dur, vol, master, 4000); }
+function sfx(f, dur = .35, vol = .25) { if (AC) window.__tt.sfx = (window.__tt.sfx || 0) + 1; if (AC) brass(f, AC.currentTime, dur, vol, master, 4000); }
 
 // ---------- cars ----------
 const CARS = {
@@ -278,16 +296,18 @@ for (const [i, l] of STAND_AT) {
 
 // ---------- race state ----------
 const race = { state: 'menu', t: 0, countdown: 0, gateNext: 0, mel: 0, style: 0, hits: 0, gatesHit: 0, gatesTotal: 0, dashes: 0, musicOn: false, results: null, place: 5 };
-window.__tt = { race, player, cars, gates, stands, errors: [] };
-function resetGates() { race.mel = 0; gates.forEach(g => setGate(g, MELODY[0])); race.gateNext = 0; }
+window.__tt = Object.assign(window.__tt || {}, { race, player, cars, gates, stands, errors: [] });
+Object.defineProperty(window.__tt, 'acState', { get: () => AC ? AC.state : 'none' });
+function resetGates() { race.mel = 0; gates.forEach(g => { setGate(g, MELODY[0]); g.g.visible = true; }); race.gateNext = 0; }
 function startRace() {
-  initAudio(); if (AC.state === 'suspended') AC.resume();
+  initAudio();
   gridUp(); resetGates(); stands.forEach(restoreStand);
   Object.assign(race, { state: 'count', t: 0, countdown: 3.999, style: 0, hits: 0, gatesHit: 0, gatesTotal: 0, dashes: 0, results: null, musicOn: true });
   step = 0; nextT = AC.currentTime + .1; $('overlay').style.display = 'none';
 }
 function restoreStand(s) { s.down = 0; s.x = s.home.x; s.z = s.home.z; s.g.position.copy(s.home); s.g.rotation.x = s.g.rotation.z = 0; }
-$('go').onclick = startRace;
+$('go').addEventListener('pointerup', e => { e.preventDefault(); startRace(); });
+$('go').addEventListener('click', e => { if (race.state === 'menu') startRace(); });
 
 // ---------- input ----------
 const keys = {}; const touch = { l: 0, r: 0, brake: 0, dash: 0, gas: 0 };
@@ -402,12 +422,12 @@ function passGate(c, g) {
   race.gateNext = (race.gateNext + 1) % gates.length;
   setGate(gates[race.gateNext], MELODY[race.mel % MELODY.length]);
   // reset previously passed gate (to keep it visible) after it's behind
-  setTimeout(() => { if (gates.indexOf(g) !== race.gateNext) setGate(g, MELODY[(race.mel + 7) % MELODY.length]); }, 1500);
+  g.g.visible = false; // hide the whole gate once crossed; it comes back next lap
 }
 function onLap(c) {
   if (c.lap === 0) return;
   if (c.lap >= LAPS && !c.finished) { c.finished = true; c.finishTime = race.t; if (c.isPlayer) finishRace(); }
-  else if (c.isPlayer) { toast(c.lap === LAPS - 1 ? 'final lap' : 'lap ' + (c.lap + 1)); stands.forEach(restoreStand); sfx(523, .25); }
+  else if (c.isPlayer) { gates.forEach(gt => gt.g.visible = true); toast(c.lap === LAPS - 1 ? 'final lap' : 'lap ' + (c.lap + 1)); stands.forEach(restoreStand); sfx(523, .25); }
 }
 let flashT = 0, toastT = 0;
 function flash(t) { $('msg').textContent = t; flashT = .8; } // center: countdown only
@@ -424,7 +444,7 @@ function finishRace() {
       <tr><td><b>BAND SCORE</b></td><td><b>${style + bonus}</b></td></tr></table>
       <table>${order.map((c, i) => `<tr><td>${i + 1}.</td><td>${c.driver}</td><td>${c.name}</td></tr>`).join('')}</table>
       <button id="again">RACE AGAIN</button>`;
-    $('again').onclick = startRace;
+    $('again').addEventListener('pointerup', e => { e.preventDefault(); startRace(); }); $('again').onclick = () => { if (race.state === 'done') startRace(); };
   }, 1800);
 }
 function collide() {
