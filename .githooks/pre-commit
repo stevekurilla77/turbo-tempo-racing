@@ -1,0 +1,2 @@
+#!/bin/sh
+node check-words.mjs || { echo "Blocked: melody/gate word check failed"; exit 1; }

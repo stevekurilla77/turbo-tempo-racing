@@ -11,8 +11,8 @@ const a1 = await p.evaluate(() => ({ acState: window.__tt.race && document.query
 await p.waitForFunction(() => __tt.race.state === 'race', null, { timeout: 30000 });
 const g = await p.evaluate(() => ({ steps: __tt.musicSteps || 0 }));
 await p.waitForFunction(() => __tt.race.gatesTotal >= 2, null, { timeout: 60000 });
-const r = await p.evaluate(() => ({ steps: __tt.musicSteps, sfx: __tt.sfx, gatesTotal: __tt.race.gatesTotal, gateVis: __tt.gates.map(g => g.g.visible), next: __tt.race.gateNext, audioEl: !!document.querySelector('audio'), acState: __tt.acState }));
-await p.screenshot({ path: 'shots/v3-gate-hidden.png' });
+const r = await p.evaluate(() => ({ previews: __tt.previews, steps: __tt.musicSteps, sfx: __tt.sfx, gatesTotal: __tt.race.gatesTotal, gateVis: __tt.gates.map(g => g.g.visible), next: __tt.race.gateNext, audioEl: !!document.querySelector('audio'), acState: __tt.acState }));
+await p.screenshot({ path: 'shots/v4-gate-passed.png' });
 await p.waitForFunction(() => __tt.player.lap >= 1, null, { timeout: 120000 });
 const lap2 = await p.evaluate(() => __tt.gates.filter(g => g.g.visible).length);
 console.log(JSON.stringify({ pre, a1, g, r, lap2visibleCount: lap2, errs }));

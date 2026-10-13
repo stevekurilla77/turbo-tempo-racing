@@ -1,5 +1,7 @@
 // Turbo Tempo Racing — Brass City prototype. © 2026 Backline Vintage. Original code/art.
 import * as THREE from 'three';
+import { MELODY, hasBlocked, melodySafe } from './words.js';
+if (!melodySafe()) throw new Error('melody spells a blocked word');
 const Q = new URLSearchParams(location.search);
 const AUTOPILOT = Q.has('autopilot'), TIMESCALE = +Q.get('speed') || 1, AUTOSTART = Q.has('autostart');
 const $ = id => document.getElementById(id);
@@ -206,11 +208,11 @@ function sfx(f, dur = .35, vol = .25) { if (AC) window.__tt.sfx = (window.__tt.s
 
 // ---------- cars ----------
 const CARS = {
-  trombone: { name: 'Trombone Coupe', color: 0xd9353a, top: 60, accel: 22, turn: 1.9, tough: .5, move: 'Slide Dash' },
-  tuba: { name: 'Tuba Truck', color: 0x2f6fd8, top: 56, accel: 13, turn: 1.45, tough: .92, move: 'Bass Blast' },
-  piccolo: { name: 'Piccolo Racer', color: 0xf2f2f2, top: 66, accel: 21, turn: 1.8, tough: .18, move: 'High Trill' },
-  snare: { name: 'Snare Kart', color: 0x38b04a, top: 57.5, accel: 25, turn: 2.6, tough: .3, move: 'Drum Roll' },
-  horn: { name: 'French Horn Cruiser', color: 0x8a3fd0, top: 58, accel: 19, turn: 2.2, tough: .5, move: 'Horn Call' },
+  trombone: { name: 'Trombone Coupe', color: 0xd9353a, top: 43, accel: 17, turn: 1.9, tough: .5, move: 'Slide Dash' },
+  tuba: { name: 'Tuba Truck', color: 0x2f6fd8, top: 40, accel: 10, turn: 1.45, tough: .92, move: 'Bass Blast' },
+  piccolo: { name: 'Piccolo Racer', color: 0xf2f2f2, top: 47.5, accel: 16, turn: 1.8, tough: .18, move: 'High Trill' },
+  snare: { name: 'Snare Kart', color: 0x38b04a, top: 41.4, accel: 19, turn: 2.6, tough: .3, move: 'Drum Roll' },
+  horn: { name: 'French Horn Cruiser', color: 0x8a3fd0, top: 41.8, accel: 14.5, turn: 2.2, tough: .5, move: 'Horn Call' },
 };
 function carMesh(type) {
   const c = CARS[type], g = new THREE.Group();
@@ -253,19 +255,20 @@ function gridUp() {
 }
 
 // ---------- note gates ----------
-const MELODY = 'CDECEFGGAGFEDC'.split('');
-const noteTex = {}; const NOTE_COL = { C: '#e53935', D: '#fb8c00', E: '#fdd835', F: '#43a047', G: '#1e88e5', A: '#5e35b1', B: '#d81b60' };
+const noteTex = {}; const NOTE_COL = { C: '#e53935', D: '#fb8c00', E: '#fdd835', F: '#43a047', G: '#00a5a8', A: '#7b3fc4', B: '#e8509a' };
 for (const n of 'CDEFGAB') noteTex[n] = canvasTex(128, 128, (g) => {
   g.fillStyle = NOTE_COL[n]; g.fillRect(0, 0, 128, 128); g.strokeStyle = '#fff'; g.lineWidth = 8; g.strokeRect(4, 4, 120, 120);
   g.fillStyle = 'rgba(255,255,255,.35)'; g.font = 'bold 60px serif'; g.fillText('♪', 8, 54);
   g.fillStyle = '#fff'; g.font = 'bold 84px Arial Black, Impact'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 6; g.strokeStyle = '#000'; g.strokeText(n, 72, 72); g.fillText(n, 72, 72);
 });
-const GATE_IDX = [40, 95, 150, 205, 265, 330, 390, 450, 510, 565];
+const GATE_IDX = [45, 145, 245, 345, 445, 545];
 const gates = GATE_IDX.map(i => {
   const g = new THREE.Group(); const panels = [];
   for (let k = 0; k < 3; k++) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 4.2), new THREE.MeshBasicMaterial({ map: noteTex.C, transparent: true, opacity: .92, side: THREE.DoubleSide }));
-    m.position.set((k - 1) * (W / 3), 4.2, 0); g.add(m); panels.push(m);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(5.1, 4.6), new THREE.MeshBasicMaterial({ map: noteTex.C, transparent: true, opacity: .92, side: THREE.DoubleSide }));
+    m.position.set((k - 1) * (W / 3), 4.3, 0); g.add(m); panels.push(m);
+    const halo = new THREE.Mesh(new THREE.PlaneGeometry(7, 6.4), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    halo.position.set((k - 1) * (W / 3), 4.3, .15); g.add(halo); m.userData.halo = halo;
   }
   for (const x of [-W / 2 - .5, W / 2 + .5]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(.35, .35, 7.5), brassMat); post.position.set(x, 3.75, 0); g.add(post); }
   const bar = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, W + 1), brassMat); bar.rotation.z = Math.PI / 2; bar.position.y = 7.5; g.add(bar);
@@ -273,9 +276,13 @@ const gates = GATE_IDX.map(i => {
   return { i, g, panels, notes: ['C', 'D', 'E'], used: false };
 });
 function setGate(gate, target) {
-  const others = 'CDEFGAB'.split('').filter(n => n !== target).sort(() => Math.random() - .5);
-  const slot = Math.floor(Math.random() * 3); gate.notes = [0, 1, 2].map(k => k === slot ? target : others.pop());
-  gate.panels.forEach((p, k) => { p.material.map = noteTex[gate.notes[k]]; p.material.opacity = .92; p.scale.setScalar(1); p.material.needsUpdate = true; });
+  for (let t = 0; t < 50; t++) { // reroll until the 3 panels never spell a blocked word (either direction)
+    const others = 'CDEFGAB'.split('').filter(n => n !== target).sort(() => Math.random() - .5);
+    const slot = Math.floor(Math.random() * 3); gate.notes = [0, 1, 2].map(k => k === slot ? target : others.pop());
+    if (!hasBlocked(gate.notes.join(''))) break;
+  }
+  gate.target = target; gate.correct = gate.notes.indexOf(target); gate.previewed = false;
+  gate.panels.forEach((p, k) => { p.material.map = noteTex[gate.notes[k]]; p.scale.setScalar(1); p.material.needsUpdate = true; p.userData.halo.material.color.set(NOTE_COL[gate.notes[k]]); });
   gate.used = false;
 }
 const panelLat = k => (k - 1) * (W / 3);
@@ -410,13 +417,13 @@ function rubber(c) { // mild catch-up so the race stays close
   const d = (progress(player) - progress(c)) / N; return 1 + Math.max(-.07, Math.min(.06, d * .12));
 }
 function hit(c, stand) { if (c.hitT > .6) { if (stand) { race.style -= 40; race.hits++; c.meter = Math.max(0, c.meter - .25); toast('bonk'); } } c.hitT = 0; }
-function tryDash(c) { if (c.meter >= 1 && c.dash <= 0) { c.meter = 0; c.dash = 1.6; c.v += 10; race.dashes++; race.style += 50; toast('slide dash'); if (AC) { const t = AC.currentTime; for (let k = 0; k < 6; k++) brass(mf(55 + k * 3), t + k * .05, .18, .12); } } }
+function tryDash(c) { if (c.meter >= 1 && c.dash <= 0) { c.meter = 0; c.dash = 1.6; c.v += 7; race.dashes++; race.style += 50; toast('slide dash'); if (AC) { const t = AC.currentTime; for (let k = 0; k < 6; k++) brass(mf(55 + k * 3), t + k * .05, .18, .12); } } }
 function passGate(c, g) {
   g.used = true; race.gatesTotal++;
   const k = [0, 1, 2].reduce((b, k) => Math.abs(c.lat - panelLat(k)) < Math.abs(c.lat - panelLat(b)) ? k : b, 0);
   const want = MELODY[race.mel % MELODY.length], got = g.notes[k];
   if (got === want && Math.abs(c.lat - panelLat(k)) < W / 6 + .5) {
-    race.gatesHit++; race.style += 100; c.boost = 1.6; c.v += 8; c.meter = Math.min(1, c.meter + .2); race.mel++;
+    race.gatesHit++; race.style += 100; c.boost = 1.6; c.v += 6; c.meter = Math.min(1, c.meter + .2); race.mel++;
     g.panels[k].scale.setScalar(1.4); sfx(NOTE[got] * 2, .5, .35); toast(got + ' ♪ +100');
   } else { g.panels.forEach(p => p.material.opacity = .3); sfx(NOTE[got] * .5, .25, .18); }
   race.gateNext = (race.gateNext + 1) % gates.length;
@@ -487,8 +494,17 @@ function hud() {
   $('place').textContent = ['1st', '2nd', '3rd', '4th', '5th'][race.place - 1];
   $('lap').firstChild.textContent = `LAP ${Math.min(LAPS, Math.max(1, player.lap + 1))}/${LAPS}`;
   $('style').textContent = 'STYLE ' + Math.round(race.style);
-  const want = MELODY[race.mel % MELODY.length]; $('nn').textContent = want; $('nn').style.color = NOTE_COL[want];
-  $('melody').innerHTML = MELODY.map((n, i) => i === race.mel % MELODY.length ? `<u style="color:#ff0">${n}</u>` : n).join(' ');
+  // gate glow: only the next gate's correct panel glows + pulses; everything else is dim
+  const pulse = .5 + .5 * Math.sin(performance.now() / 160);
+  gates.forEach((g, gi) => g.panels.forEach((p, k) => {
+    const on = gi === race.gateNext && k === g.correct && race.state !== 'menu';
+    p.material.color.setScalar(on ? 1 : .42); p.material.opacity = on ? 1 : .6;
+    p.scale.setScalar(on ? 1.06 + .08 * pulse : 1); p.userData.halo.material.opacity = on ? .35 + .45 * pulse : 0;
+    p.userData.halo.scale.setScalar(on ? 1 + .12 * pulse : 1);
+  }));
+  // soft pitch preview ~1.5 s before the next gate
+  { const g = gates[race.gateNext]; const d = ((g.i - player.idx + N) % N) * SEG;
+    if (race.state === 'race' && !g.previewed && player.v > 3 && d < player.v * 1.5 && d < N * SEG / 2) { g.previewed = true; if (AC) { window.__tt.previews = (window.__tt.previews || 0) + 1; brass(NOTE[g.target], AC.currentTime, .45, .09, master, 1400); } } }
   $('mph').textContent = Math.round(player.v * 1.6) + ' MPH';
   $('meterfill').style.width = (player.meter * 100) + '%';
   $('bdash').classList.toggle('ready', player.meter >= 1);
