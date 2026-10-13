@@ -1,0 +1,18 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ executablePath: '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell', args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
+const p = await b.newPage({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+const errs=[]; p.on('pageerror', e => errs.push(''+e)); p.on('console', m => m.type()==='error'&&errs.push(m.text()));
+await p.goto('http://127.0.0.1:8787/'); await p.waitForTimeout(500);
+await p.screenshot({ path: 'shots/00-title-phone.png' });
+await p.tap('#go'); await p.waitForTimeout(4500);
+const h0 = await p.evaluate(() => __tt.player.h);
+await p.keyboard.down('ArrowLeft'); await p.waitForTimeout(700); await p.keyboard.up('ArrowLeft');
+const h1 = await p.evaluate(() => __tt.player.h);
+const box = await p.locator('#br').boundingBox();
+await p.evaluate(() => { const e = document.getElementById('br'); e.dispatchEvent(new PointerEvent('pointerdown', {bubbles:true})); });
+await p.waitForTimeout(700);
+await p.evaluate(() => { const e = document.getElementById('br'); e.dispatchEvent(new PointerEvent('pointerup', {bubbles:true})); });
+const h2 = await p.evaluate(() => __tt.player.h);
+await p.screenshot({ path: 'shots/05-phone-race.png' });
+console.log({ h0, h1, h2, v: await p.evaluate(() => __tt.player.v), state: await p.evaluate(()=>__tt.race.state), errs });
+await b.close();
