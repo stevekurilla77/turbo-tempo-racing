@@ -10,14 +10,19 @@ let seed = 7; const srand = () => (seed = (seed * 16807) % 2147483647) / 2147483
 // ---------- renderer / scene ----------
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+function vpSize() { const v = window.visualViewport; return [Math.round(v ? v.width : innerWidth), Math.round(v ? v.height : innerHeight)]; }
+renderer.setSize(...vpSize());
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf7a35c);
 scene.fog = new THREE.Fog(0xf2a066, 120, 520);
-const camera = new THREE.PerspectiveCamera(68, innerWidth / innerHeight, 0.5, 1200);
-addEventListener('resize', () => { renderer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); });
+const camera = new THREE.PerspectiveCamera(68, vpSize()[0] / vpSize()[1], 0.5, 1200);
+function onResize() { const [w, h] = vpSize(); renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); window.scrollTo(0, 0); }
+addEventListener('resize', onResize); addEventListener('orientationchange', () => { onResize(); setTimeout(onResize, 300); setTimeout(onResize, 800); });
+if (window.visualViewport) visualViewport.addEventListener('resize', onResize);
+document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+document.addEventListener('gesturestart', e => e.preventDefault());
 scene.add(new THREE.HemisphereLight(0xffe2c0, 0x40304a, 1.3));
 const sun = new THREE.DirectionalLight(0xfff0d0, 1.8); sun.position.set(-200, 300, 100); scene.add(sun);
 
@@ -285,14 +290,18 @@ function restoreStand(s) { s.down = 0; s.x = s.home.x; s.z = s.home.z; s.g.posit
 $('go').onclick = startRace;
 
 // ---------- input ----------
-const keys = {}; const touch = { l: 0, r: 0, brake: 0, dash: 0 };
+const keys = {}; const touch = { l: 0, r: 0, brake: 0, dash: 0, gas: 0 };
 addEventListener('keydown', e => { keys[e.code] = 1; if (e.code === 'Space') { touch.dashPress = 1; e.preventDefault(); } if (race.state === 'menu' && (e.code === 'Enter')) startRace(); });
 addEventListener('keyup', e => { keys[e.code] = 0; });
-function holdBtn(id, k) { const el = $(id);
-  const on = e => { e.preventDefault(); touch[k] = 1; el.classList.add('on'); if (k === 'dash') touch.dashPress = 1; initAudio(); };
-  const off = e => { e.preventDefault(); touch[k] = 0; el.classList.remove('on'); };
-  el.addEventListener('pointerdown', on); el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('pointerleave', off); }
-holdBtn('bl', 'l'); holdBtn('br', 'r'); holdBtn('bbrake', 'brake'); holdBtn('bdash', 'dash');
+// true multitouch: each button tracks its own set of active pointer ids
+function holdBtn(id, k) { const el = $(id), ids = new Set();
+  const upd = () => { touch[k] = ids.size ? 1 : 0; el.classList.toggle('on', ids.size > 0); };
+  el.addEventListener('pointerdown', e => { e.preventDefault(); ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (_) {} if (k === 'dash') touch.dashPress = 1; initAudio(); upd(); });
+  const off = e => { ids.delete(e.pointerId); upd(); };
+  el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
+  el.addEventListener('contextmenu', e => e.preventDefault()); }
+holdBtn('bl', 'l'); holdBtn('br', 'r'); holdBtn('bbrake', 'brake'); holdBtn('bdash', 'dash'); holdBtn('bgas', 'gas');
+addEventListener('blur', () => { for (const k in keys) keys[k] = 0; });
 // tilt-free: also allow dragging anywhere on left half to steer is skipped to keep buttons clear.
 
 // ---------- simulation ----------
@@ -315,6 +324,7 @@ function stepCar(c, dt) {
   if (c.isPlayer && !AUTOPILOT && !c.finished) {
     steer = (keys.ArrowRight || keys.KeyD || touch.r ? 1 : 0) - (keys.ArrowLeft || keys.KeyA || touch.l ? 1 : 0);
     brake = keys.ArrowDown || keys.KeyS || touch.brake ? 1 : 0;
+    gas = race.state === 'race' && (keys.ArrowUp || keys.KeyW || touch.gas) ? 1 : 0;
     if (touch.dashPress) { touch.dashPress = 0; tryDash(c); }
   } else {
     // AI / autopilot: aim at the melody panel if a gate is ahead
@@ -328,7 +338,11 @@ function stepCar(c, dt) {
     else if (c.meter >= 1 && race.state === 'race') tryDash(c);
   }
   if (race.state !== 'race' && !c.finished) { steer = 0; }
-  c.steer += (steer - c.steer) * Math.min(1, dt * 10);
+  if (c.isPlayer && !AUTOPILOT) {
+    // smooth steering: ramp in slowly, auto-center faster when released
+    const rate = steer === 0 ? 4.5 : (Math.sign(steer) !== Math.sign(c.steer) && c.steer !== 0 ? 5 : 2.2);
+    const d = steer - c.steer; c.steer += Math.sign(d) * Math.min(Math.abs(d), rate * dt);
+  } else c.steer += (steer - c.steer) * Math.min(1, dt * 10);
   // top speed
   const lat = c.lat, off = Math.abs(lat) > W / 2 + .5;
   let top = c.top * (c.isPlayer ? 1 : c.aiSkill * rubber(c));
@@ -336,11 +350,18 @@ function stepCar(c, dt) {
   if (c.boost > 0) top *= 1.28;
   if (c.dash > 0) top *= 1.42;
   if (c.finished) top *= .5;
-  if (brake) c.v -= 45 * dt; else if (c.v < top) c.v += c.accel * gas * dt * (c.boost > 0 || c.dash > 0 ? 2.2 : 1) * (1 - .4 * c.v / top);
+  if (brake) c.v -= 45 * dt; else if (gas === 0 && c.isPlayer) c.v -= (6 + c.v * .12) * dt; else if (c.v < top) c.v += c.accel * gas * dt * (c.boost > 0 || c.dash > 0 ? 2.2 : 1) * (1 - .4 * c.v / top);
   else c.v -= (c.v - top) * Math.min(1, dt * 1.5);
   c.v = Math.max(0, c.v);
-  const turn = c.turn * (c.dash > 0 ? 1.35 : 1) * Math.min(1, c.v / 15) * (1 - .25 * Math.min(1, c.v / 70));
+  const hi = c.isPlayer ? .35 : .25; // player: much lower max turn rate at speed
+  const turn = c.turn * (c.dash > 0 ? 1.3 : 1) * Math.min(1, c.v / 15) * (1 - hi * Math.min(1, c.v / 70));
   c.h -= c.steer * turn * dt; // forward = (sin h, cos h); positive steer = right turn = decreasing h
+  if (c.isPlayer && !AUTOPILOT && race.state === 'race') { // light assist: gently align with the road, more near the edges
+    const th = Math.atan2(T[c.idx].x, T[c.idx].z), edge = Math.max(0, Math.abs(c.lat) - (W / 2 - 3)) / 4;
+    c.h += angDiff(th, c.h) * Math.min(1, (steer === 0 ? .9 : .25) * dt);
+    // steering right (+) moves toward +lat; nudge back toward center unless the player is steering outward on purpose
+    if (edge > 0 && Math.sign(steer) !== Math.sign(c.lat) && c.v > 5) c.h += Math.sign(c.lat) * Math.min(.6, edge) * 1.2 * dt;
+  }
   c.x += Math.sin(c.h) * c.v * dt; c.z += Math.cos(c.h) * c.v * dt;
   c.boost -= dt; c.dash -= dt; c.hitT += dt;
   // track position
@@ -368,15 +389,15 @@ function stepCar(c, dt) {
 function rubber(c) { // mild catch-up so the race stays close
   const d = (progress(player) - progress(c)) / N; return 1 + Math.max(-.07, Math.min(.06, d * .12));
 }
-function hit(c, stand) { if (c.hitT > .6) { if (stand) { race.style -= 40; race.hits++; c.meter = Math.max(0, c.meter - .25); flash('BONK!'); } } c.hitT = 0; }
-function tryDash(c) { if (c.meter >= 1 && c.dash <= 0) { c.meter = 0; c.dash = 1.6; c.v += 10; race.dashes++; race.style += 50; flash('SLIDE DASH!'); if (AC) { const t = AC.currentTime; for (let k = 0; k < 6; k++) brass(mf(55 + k * 3), t + k * .05, .18, .12); } } }
+function hit(c, stand) { if (c.hitT > .6) { if (stand) { race.style -= 40; race.hits++; c.meter = Math.max(0, c.meter - .25); toast('bonk'); } } c.hitT = 0; }
+function tryDash(c) { if (c.meter >= 1 && c.dash <= 0) { c.meter = 0; c.dash = 1.6; c.v += 10; race.dashes++; race.style += 50; toast('slide dash'); if (AC) { const t = AC.currentTime; for (let k = 0; k < 6; k++) brass(mf(55 + k * 3), t + k * .05, .18, .12); } } }
 function passGate(c, g) {
   g.used = true; race.gatesTotal++;
   const k = [0, 1, 2].reduce((b, k) => Math.abs(c.lat - panelLat(k)) < Math.abs(c.lat - panelLat(b)) ? k : b, 0);
   const want = MELODY[race.mel % MELODY.length], got = g.notes[k];
   if (got === want && Math.abs(c.lat - panelLat(k)) < W / 6 + .5) {
     race.gatesHit++; race.style += 100; c.boost = 1.6; c.v += 8; c.meter = Math.min(1, c.meter + .2); race.mel++;
-    g.panels[k].scale.setScalar(1.4); sfx(NOTE[got] * 2, .5, .35); flash(got + '! ON MELODY');
+    g.panels[k].scale.setScalar(1.4); sfx(NOTE[got] * 2, .5, .35); toast(got + ' ♪ +100');
   } else { g.panels.forEach(p => p.material.opacity = .3); sfx(NOTE[got] * .5, .25, .18); }
   race.gateNext = (race.gateNext + 1) % gates.length;
   setGate(gates[race.gateNext], MELODY[race.mel % MELODY.length]);
@@ -386,14 +407,16 @@ function passGate(c, g) {
 function onLap(c) {
   if (c.lap === 0) return;
   if (c.lap >= LAPS && !c.finished) { c.finished = true; c.finishTime = race.t; if (c.isPlayer) finishRace(); }
-  else if (c.isPlayer) { flash(c.lap === LAPS - 1 ? 'FINAL LAP!' : 'LAP ' + (c.lap + 1)); stands.forEach(restoreStand); sfx(523, .25); }
+  else if (c.isPlayer) { toast(c.lap === LAPS - 1 ? 'final lap' : 'lap ' + (c.lap + 1)); stands.forEach(restoreStand); sfx(523, .25); }
 }
-let flashT = 0; function flash(t) { $('msg').textContent = t; flashT = 1.2; }
+let flashT = 0, toastT = 0;
+function flash(t) { $('msg').textContent = t; flashT = .8; } // center: countdown only
+function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; toastT = .7; }
 function finishRace() {
   race.state = 'done'; const order = [...cars].sort((a, b) => progress(b) - progress(a)); const place = order.indexOf(player) + 1;
   const bonus = [1000, 700, 500, 300, 150][place - 1]; const style = Math.round(race.style);
   race.results = { place, style, bonus, total: style + bonus, order: order.map(c => c.driver + ' — ' + c.name) };
-  flash(place === 1 ? '1ST PLACE!' : 'FINISH!');
+  toast('finish!');
   setTimeout(() => {
     const ov = $('overlay'); ov.style.display = 'flex';
     ov.innerHTML = `<h1>${['1ST', '2ND', '3RD', '4TH', '5TH'][place - 1]} PLACE</h1><table>
@@ -446,9 +469,9 @@ function hud() {
   $('style').textContent = 'STYLE ' + Math.round(race.style);
   const want = MELODY[race.mel % MELODY.length]; $('nn').textContent = want; $('nn').style.color = NOTE_COL[want];
   $('melody').innerHTML = MELODY.map((n, i) => i === race.mel % MELODY.length ? `<u style="color:#ff0">${n}</u>` : n).join(' ');
-  $('speed').textContent = Math.round(player.v * 1.6) + ' MPH';
-  $('meterfill').style.width = (player.meter * 100) + '%'; $('meter').style.borderColor = player.meter >= 1 ? '#fff' : '#ffd34d';
-  $('bdash').style.background = player.meter >= 1 ? 'rgba(255,200,40,.6)' : '';
+  $('mph').textContent = Math.round(player.v * 1.6) + ' MPH';
+  $('meterfill').style.width = (player.meter * 100) + '%';
+  $('bdash').classList.toggle('ready', player.meter >= 1);
 }
 let last = performance.now(), acc = 0;
 function frame(now) {
@@ -458,6 +481,7 @@ function frame(now) {
     while (acc > 1 / 60) { sim(1 / 60); acc -= 1 / 60; }
     camDt = dt; schedMusic(); syncMeshes(); hud();
     if (flashT > 0) { flashT -= dt / TIMESCALE; if (flashT <= 0) $('msg').textContent = ''; }
+    if (toastT > 0) { toastT -= dt / TIMESCALE; if (toastT <= 0) $('toast').style.display = 'none'; }
     renderer.render(scene, camera);
   } catch (e) { window.__tt.errors.push(String(e)); console.error(e); }
 }
