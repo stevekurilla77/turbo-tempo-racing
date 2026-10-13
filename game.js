@@ -5,6 +5,18 @@ if (!melodySafe()) throw new Error('melody spells a blocked word');
 const Q = new URLSearchParams(location.search);
 const AUTOPILOT = Q.has('autopilot'), TIMESCALE = +Q.get('speed') || 1, AUTOSTART = Q.has('autostart');
 const $ = id => document.getElementById(id);
+// ================= STEERING TUNING (player only) =================
+// "sensitive" = default (v5 experiment). "smooth" = v4 feel; use ?steer=smooth to compare.
+const STEER_PRESETS = {
+  sensitive: { easeIn: 5.0,  recenter: 7.0, reverse: 8.0, turnMul: 1.4, highSpeedCut: .18, alignFree: .5, alignSteer: .12, edgePush: .7 },
+  // smooth preset (v4 values):
+  smooth:    { easeIn: 2.2,  recenter: 4.5, reverse: 5.0, turnMul: 1.0, highSpeedCut: .35, alignFree: .9, alignSteer: .25, edgePush: 1.2 },
+};
+// easeIn/recenter/reverse: steer change per second (1/easeIn = seconds to full lock)
+// turnMul: max turn rate multiplier; highSpeedCut: fraction of turn rate lost at top speed
+// alignFree/alignSteer: road-assist strength when not steering / while steering; edgePush: nudge back from the curb
+const STEER = STEER_PRESETS[new URLSearchParams(location.search).get('steer') === 'smooth' ? 'smooth' : 'sensitive'];
+// =================================================================
 const LAPS = 3, W = 16, N = 600;
 const rand = (a, b) => a + Math.random() * (b - a);
 let seed = 7; const srand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
@@ -307,10 +319,10 @@ window.__tt = Object.assign(window.__tt || {}, { race, player, cars, gates, stan
 Object.defineProperty(window.__tt, 'acState', { get: () => AC ? AC.state : 'none' });
 function resetGates() { race.mel = 0; gates.forEach(g => { setGate(g, MELODY[0]); g.g.visible = true; }); race.gateNext = 0; }
 function startRace() {
-  initAudio();
+  if (!(AUTOSTART && navigator.userActivation && !navigator.userActivation.isActive)) initAudio(); // autostart (tests) has no gesture
   gridUp(); resetGates(); stands.forEach(restoreStand);
   Object.assign(race, { state: 'count', t: 0, countdown: 3.999, style: 0, hits: 0, gatesHit: 0, gatesTotal: 0, dashes: 0, results: null, musicOn: true });
-  step = 0; nextT = AC.currentTime + .1; $('overlay').style.display = 'none';
+  step = 0; nextT = AC ? AC.currentTime + .1 : 0; $('overlay').style.display = 'none';
 }
 function restoreStand(s) { s.down = 0; s.x = s.home.x; s.z = s.home.z; s.g.position.copy(s.home); s.g.rotation.x = s.g.rotation.z = 0; }
 $('go').addEventListener('pointerup', e => { e.preventDefault(); startRace(); });
@@ -367,7 +379,7 @@ function stepCar(c, dt) {
   if (race.state !== 'race' && !c.finished) { steer = 0; }
   if (c.isPlayer && !AUTOPILOT) {
     // smooth steering: ramp in slowly, auto-center faster when released
-    const rate = steer === 0 ? 4.5 : (Math.sign(steer) !== Math.sign(c.steer) && c.steer !== 0 ? 5 : 2.2);
+    const rate = steer === 0 ? STEER.recenter : (Math.sign(steer) !== Math.sign(c.steer) && c.steer !== 0 ? STEER.reverse : STEER.easeIn);
     const d = steer - c.steer; c.steer += Math.sign(d) * Math.min(Math.abs(d), rate * dt);
   } else c.steer += (steer - c.steer) * Math.min(1, dt * 10);
   // top speed
@@ -380,14 +392,14 @@ function stepCar(c, dt) {
   if (brake) c.v -= 45 * dt; else if (gas === 0 && c.isPlayer) c.v -= (6 + c.v * .12) * dt; else if (c.v < top) c.v += c.accel * gas * dt * (c.boost > 0 || c.dash > 0 ? 2.2 : 1) * (1 - .4 * c.v / top);
   else c.v -= (c.v - top) * Math.min(1, dt * 1.5);
   c.v = Math.max(0, c.v);
-  const hi = c.isPlayer ? .35 : .25; // player: much lower max turn rate at speed
-  const turn = c.turn * (c.dash > 0 ? 1.3 : 1) * Math.min(1, c.v / 15) * (1 - hi * Math.min(1, c.v / 70));
+  const hi = c.isPlayer ? STEER.highSpeedCut : .25;
+  const turn = c.turn * (c.isPlayer && !AUTOPILOT ? STEER.turnMul : 1) * (c.dash > 0 ? 1.3 : 1) * Math.min(1, c.v / 15) * (1 - hi * Math.min(1, c.v / 70));
   c.h -= c.steer * turn * dt; // forward = (sin h, cos h); positive steer = right turn = decreasing h
   if (c.isPlayer && !AUTOPILOT && race.state === 'race') { // light assist: gently align with the road, more near the edges
     const th = Math.atan2(T[c.idx].x, T[c.idx].z), edge = Math.max(0, Math.abs(c.lat) - (W / 2 - 3)) / 4;
-    c.h += angDiff(th, c.h) * Math.min(1, (steer === 0 ? .9 : .25) * dt);
+    c.h += angDiff(th, c.h) * Math.min(1, (steer === 0 ? STEER.alignFree : STEER.alignSteer) * dt);
     // steering right (+) moves toward +lat; nudge back toward center unless the player is steering outward on purpose
-    if (edge > 0 && Math.sign(steer) !== Math.sign(c.lat) && c.v > 5) c.h += Math.sign(c.lat) * Math.min(.6, edge) * 1.2 * dt;
+    if (edge > 0 && Math.sign(steer) !== Math.sign(c.lat) && c.v > 5) c.h += Math.sign(c.lat) * Math.min(.6, edge) * STEER.edgePush * dt;
   }
   c.x += Math.sin(c.h) * c.v * dt; c.z += Math.cos(c.h) * c.v * dt;
   c.boost -= dt; c.dash -= dt; c.hitT += dt;
