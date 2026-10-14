@@ -411,9 +411,42 @@ function startRace() {
   Object.assign(race, { state: 'count', t: 0, countdown: 3.999, style: 0, band: .35, results: null, musicOn: true, lastPlace: 5 });
   cars.forEach(c => { if (!c.isPlayer) c.useAlley = Math.random() < .3; }); player.useAlley = AUTOPILOT;
   step = 0; nextT = AC ? AC.currentTime + .1 : 0; $('overlay').style.display = 'none';
+  if (tilt.mode === 'tilt') { recenterTilt(); checkTiltSensor(); }
 }
-$('go').addEventListener('pointerup', e => { e.preventDefault(); startRace(); });
-$('go').addEventListener('click', e => { if (race.state === 'menu') startRace(); });
+
+// ---------- tilt steering ----------
+const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
+const TILT_DEAD = 3, TILT_LOCK = 25; // degrees
+const tilt = { mode: 'buttons', raw: 0, neutral: 0, value: 0, seen: false, lastT: 0, perm: 'unknown' };
+window.__tt.tilt = tilt;
+function orientAngle() { if (window.__tt.angleOverride != null) return window.__tt.angleOverride; const a = screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : (typeof window.orientation === 'number' ? window.orientation : 90); return ((a % 360) + 360) % 360; }
+// landscape: the long axis is horizontal, so "steering wheel" rotation shows up in beta; its sign flips between the two landscape orientations
+function tiltRaw(e) { const ang = orientAngle(); if (ang === 90) return e.beta; if (ang === 270) return -e.beta; return ang === 180 ? -e.gamma : e.gamma; }
+addEventListener('deviceorientation', e => { if (e.beta == null && e.gamma == null) return; tilt.seen = true; tilt.lastT = performance.now(); tilt.raw = tiltRaw(e); });
+function recenterTilt() { tilt.neutral = tilt.raw; tilt.value = 0; }
+function tiltSteer(dt) { // deadzone + full lock + smoothing; returns -1..1 (right = +)
+  let d = tilt.raw - tilt.neutral; if (d > 180) d -= 360; if (d < -180) d += 360;
+  const m = Math.abs(d) < TILT_DEAD ? 0 : Math.sign(d) * Math.min(1, (Math.abs(d) - TILT_DEAD) / (TILT_LOCK - TILT_DEAD));
+  tilt.value += (m - tilt.value) * Math.min(1, dt * 12); return Math.abs(tilt.value) < .02 ? 0 : tilt.value;
+}
+function setSteerMode(m, save = true) { tilt.mode = m; document.body.classList.toggle('tilt', m === 'tilt'); $('smTilt').classList.toggle('sel', m === 'tilt'); $('smBtn').classList.toggle('sel', m !== 'tilt'); if (save) try { localStorage.setItem('tt_steer', m); } catch (_) {} }
+function fallbackButtons(why) { setSteerMode('buttons', false); toast(why); }
+let savedMode = null; try { savedMode = localStorage.getItem('tt_steer'); } catch (_) {}
+setSteerMode(savedMode || (IS_TOUCH ? 'tilt' : 'buttons'), false);
+if (IS_TOUCH || Q.has('tiltui')) $('steermode').style.display = 'flex';
+$('smTilt').addEventListener('click', () => setSteerMode('tilt')); $('smBtn').addEventListener('click', () => setSteerMode('buttons'));
+let permAsked = false;
+function askTiltPermission() { // must run synchronously inside the START tap
+  if (tilt.mode !== 'tilt' || permAsked) return; permAsked = true;
+  const DOE = window.DeviceOrientationEvent;
+  if (DOE && typeof DOE.requestPermission === 'function') {
+    try { DOE.requestPermission().then(r => { tilt.perm = r; if (r !== 'granted') fallbackButtons('tilt not allowed: using buttons'); }).catch(() => { tilt.perm = 'denied'; fallbackButtons('tilt not allowed: using buttons'); }); } catch (_) { tilt.perm = 'denied'; fallbackButtons('tilt not allowed: using buttons'); }
+  } else tilt.perm = DOE ? 'granted' : 'none';
+}
+function checkTiltSensor() { setTimeout(() => { if (tilt.mode === 'tilt' && !tilt.seen) fallbackButtons('no tilt sensor: using buttons'); }, 1500); }
+$('recenter').addEventListener('pointerdown', e => { e.preventDefault(); recenterTilt(); toast('recentered'); });
+$('go').addEventListener('pointerup', e => { e.preventDefault(); askTiltPermission(); startRace(); });
+$('go').addEventListener('click', e => { askTiltPermission(); if (race.state === 'menu') startRace(); });
 const band = d => { race.band = Math.max(0, Math.min(1, race.band + d)); };
 
 // ---------- input ----------
@@ -499,11 +532,12 @@ function stepCar(c, dt) {
   const racing = race.state === 'race' && !c.finished;
   if (c.isPlayer && !AUTOPILOT && !c.finished) {
     steer = (keys.ArrowRight || keys.KeyD || touch.r ? 1 : 0) - (keys.ArrowLeft || keys.KeyA || touch.l ? 1 : 0);
+    if (tilt.mode === 'tilt' && steer === 0) steer = tiltSteer(dt);
     brake = keys.ArrowDown || keys.KeyS || touch.brake ? 1 : 0;
     gas = racing && (keys.ArrowUp || keys.KeyW || touch.gas) ? 1 : 0;
     driftIn = touch.drift || keys.ShiftLeft || keys.ShiftRight || keys.KeyX ? 1 : 0;
     // auto-drift: light brake while steering hard at speed
-    if (brake && Math.abs(steer) > 0 && c.v > c.top * .6) { driftIn = 1; }
+    if (brake && Math.abs(steer) > .25 && c.v > c.top * .6) { driftIn = 1; }
     if (touch.dashPress) { touch.dashPress = 0; if (c.air) trickIn = 1; else tryDash(c); }
   } else {
     const o = aiControl(c, dt); steer = o.steer; driftIn = o.drift; trickIn = o.trick;
@@ -664,7 +698,7 @@ function collide() {
 function sim(dt) {
   if (race.state === 'count') {
     const before = Math.ceil(race.countdown); race.countdown -= dt; const after = Math.ceil(race.countdown);
-    if (after !== before) { if (after > 0) { flash(String(after)); sfx(392, .2); } else { flash('GO!'); sfx(784, .5, .35); race.state = 'race'; } }
+    if (after !== before) { if (after > 0) { flash(String(after)); sfx(392, .2); } else { flash('GO!'); sfx(784, .5, .35); race.state = 'race'; if (tilt.mode === 'tilt') recenterTilt(); } }
   }
   if (race.state === 'race' || race.state === 'done') race.t += dt;
   // metronome swing (always), tick when crossing center
