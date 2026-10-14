@@ -1,7 +1,14 @@
 import { chromium } from 'playwright';
 const b = await chromium.launch({ executablePath: '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell', args: ['--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader'] });
 const base = process.argv[2] || 'http://127.0.0.1:8787/';
-const ori = (p, beta) => p.evaluate(b => dispatchEvent(new DeviceOrientationEvent('deviceorientation', { alpha: 0, beta: b, gamma: -80 })), beta);
+// phone held in landscape like a steering wheel: base = -90 (angle 90) or +90 (angle 270) in-screen rotation from portrait,
+// leaned back 'back' degrees, turned clockwise by 'wheel' degrees. sign=-1: spec accelerationIncludingGravity (reaction), +1: legacy iOS sign.
+let SIGN = -1, BACK = 30;
+const motion = (p, wheel, ang) => p.evaluate(([wheel, ang, SIGN, BACK]) => { const base = ang === 90 ? -90 : 90, th = (base + wheel) * Math.PI / 180, c = Math.cos(BACK * Math.PI / 180) * 9.81;
+  const g = { x: Math.sin(th) * c, y: -Math.cos(th) * c, z: -Math.sin(BACK * Math.PI / 180) * 9.81 };
+  dispatchEvent(new DeviceMotionEvent('devicemotion', { accelerationIncludingGravity: { x: SIGN * g.x, y: SIGN * g.y, z: SIGN * g.z }, interval: 16 })); }, [wheel, ang, SIGN, BACK]);
+const ori = (p, w) => motion(p, w - 4, cur);
+let cur = 90;
 const res = {};
 for (const [w, h, tag] of [[844, 390, 'iphone'], [1180, 820, 'ipad']]) {
   const ctx = await b.newContext({ viewport: { width: w, height: h }, hasTouch: true, isMobile: true });
@@ -19,16 +26,24 @@ for (const [w, h, tag] of [[844, 390, 'iphone'], [1180, 820, 'ipad']]) {
   const G = await c('#bgas'), B = await c('#bbrake'), D = await c('#bdrift'), R = await c('#recenter');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: G.x, y: G.y, id: 1 }] });
   await p.waitForTimeout(1500);
-  const sv = async (beta, ang) => { await p.evaluate(a => __tt.angleOverride = a, ang); await ori(p, beta); await p.waitForTimeout(450); return p.evaluate(() => +__tt.player.steer.toFixed(2)); };
-  r.neutral = await p.evaluate(() => +__tt.tilt.neutral.toFixed(1));
-  r.dead = await sv(4 + 2, 90);          // 2° from neutral -> deadzone
-  r.right90 = await sv(4 + 15, 90);      // tilt +15° in landscape 90 -> steer right (+)
-  r.full90 = await sv(4 + 30, 90);       // past full lock -> 1
-  r.left90 = await sv(4 - 15, 90);
-  r.right270 = await sv(-(4 + 15), 270); // other landscape: same physical tilt reads with opposite beta sign
+  const sv = async (beta, ang) => { cur = ang; await p.evaluate(a => __tt.angleOverride = a, ang); await ori(p, beta); await p.waitForTimeout(450); return p.evaluate(() => +__tt.player.steer.toFixed(2)); };
+  r.neutral = await p.evaluate(() => +__tt.tilt.neutral.toFixed(1)); r.src = await p.evaluate(() => __tt.tilt.src);
+  r.dead = await sv(4 + 1, 90);           // 1° wheel turn -> inside 1.5° deadzone
+  r.right6 = await sv(4 + 6, 90);         // 6° clockwise -> ~0.43 right
+  r.full12 = await sv(4 + 13, 90);        // past 12° -> full right
+  r.left6 = await sv(4 - 6, 90);
+  // other landscape orientation (recalibrate like a race start)
+  cur = 270; await p.evaluate(() => __tt.angleOverride = 270); await ori(p, 4); await p.waitForTimeout(200); await p.evaluate(() => { __tt.tilt.neutral = __tt.tilt.raw; });
+  r.right6_270 = await sv(4 + 6, 270); r.left6_270 = await sv(4 - 6, 270);
+  // legacy iOS gravity sign + phone leaned back 60°
+  SIGN = 1; BACK = 60; await ori(p, 4); await p.waitForTimeout(200); await p.evaluate(() => { __tt.tilt.neutral = __tt.tilt.raw; });
+  r.right6_flipSign = await sv(4 + 6, 270); SIGN = -1; BACK = 30;
+  // big tilt must NOT show the rotate overlay (orientation is from screen.orientation only)
+  await sv(4 + 40, 270); r.rotOverlayShown = await p.isVisible('#rot');
+  cur = 90; await p.evaluate(() => __tt.angleOverride = 90); await ori(p, 4); await p.waitForTimeout(150); await p.evaluate(() => { __tt.tilt.neutral = __tt.tilt.raw; });
   await p.screenshot({ path: `shots/v7-${tag}-tilt.png` });
   // recenter: hold a 12° tilt then tap RECENTER -> neutral moves -> steer back to ~0
-  await sv(4 + 12, 90);
+  await sv(4 + 8, 90);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: G.x, y: G.y, id: 1 }, { x: R.x, y: R.y, id: 2 }] });
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [{ x: R.x, y: R.y, id: 2 }] });
   await p.waitForTimeout(500); r.afterRecenter = await p.evaluate(() => +__tt.player.steer.toFixed(2));
@@ -36,6 +51,9 @@ for (const [w, h, tag] of [[844, 390, 'iphone'], [1180, 820, 'ipad']]) {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: G.x, y: G.y, id: 1 }, { x: B.x, y: B.y, id: 3 }, { x: D.x, y: D.y, id: 4 }] });
   await p.waitForTimeout(200); r.multi = await p.evaluate(() => ['bgas', 'bbrake', 'bdrift'].filter(i => document.getElementById(i).classList.contains('on')).join(','));
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+  await p.evaluate(() => __tt.portraitOverride = true); await p.waitForTimeout(500); r.rotAfter500msPortrait = await p.isVisible('#rot');
+  await p.waitForTimeout(900); r.rotAfter1400msPortrait = await p.isVisible('#rot'); await p.evaluate(() => __tt.portraitOverride = false); await p.waitForTimeout(300); r.rotGone = !(await p.isVisible('#rot'));
+  r.sensUI = await p.evaluate(() => [...document.querySelectorAll('#sens button')].filter(b => b.classList.contains('sel')).map(b => b.dataset.s).join());
   r.errs = errs; res[tag] = r; await ctx.close();
 }
 // fallback 1: permission denied

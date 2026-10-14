@@ -416,28 +416,43 @@ function startRace() {
 
 // ---------- tilt steering ----------
 const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
-const TILT_DEAD = 3, TILT_LOCK = 25; // degrees
-const tilt = { mode: 'buttons', raw: 0, neutral: 0, value: 0, seen: false, lastT: 0, perm: 'unknown' };
+// sensitivity presets (degrees of steering-wheel rotation): deadzone and full lock
+const TILT_SENS = { low: { dead: 2.5, lock: 22 }, med: { dead: 2, lock: 16 }, high: { dead: 1.5, lock: 12 } };
+let tiltSens = 'high'; try { tiltSens = localStorage.getItem('tt_sens') || 'high'; } catch (_) {}
+const tilt = { mode: 'buttons', raw: 0, neutral: 0, value: 0, seen: false, motionSeen: false, lastT: 0, perm: 'unknown', src: 'none' };
 window.__tt.tilt = tilt;
 function orientAngle() { if (window.__tt.angleOverride != null) return window.__tt.angleOverride; const a = screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : (typeof window.orientation === 'number' ? window.orientation : 90); return ((a % 360) + 360) % 360; }
-// landscape: the long axis is horizontal, so "steering wheel" rotation shows up in beta; its sign flips between the two landscape orientations
-function tiltRaw(e) { const ang = orientAngle(); if (ang === 90) return e.beta; if (ang === 270) return -e.beta; return ang === 180 ? -e.gamma : e.gamma; }
-addEventListener('deviceorientation', e => { if (e.beta == null && e.gamma == null) return; tilt.seen = true; tilt.lastT = performance.now(); tilt.raw = tiltRaw(e); });
+// Steering-wheel angle = rotation of the phone about the axis through the screen.
+// Gravity's direction within the screen plane gives that directly: phi = atan2(-gx, gy) (device coords),
+// clockwise turn (seen from the front) = positive = steer right. We always use the angle RELATIVE to the
+// calibrated neutral, so it works in either landscape orientation and is immune to the iOS/Android sign flip
+// of accelerationIncludingGravity (flipping both components shifts every reading by 180°, deltas are unchanged).
+function wheelFromGravity(gx, gy) { if (Math.hypot(gx, gy) < 2) return null; return Math.atan2(-gx, gy) * 180 / Math.PI; } // null when the phone is nearly flat
+function setRaw(v, src) { if (v == null) return; tilt.raw = v; tilt.seen = true; tilt.lastT = performance.now(); tilt.src = src; }
+addEventListener('devicemotion', e => { const g = e.accelerationIncludingGravity; if (!g || g.x == null || g.y == null) return; tilt.motionSeen = true; setRaw(wheelFromGravity(g.x, g.y), 'motion'); });
+addEventListener('deviceorientation', e => { // fallback only if no motion data: rebuild the gravity vector from beta/gamma
+  if (tilt.motionSeen || e.beta == null || e.gamma == null) return;
+  const b = e.beta * Math.PI / 180, gm = e.gamma * Math.PI / 180; setRaw(wheelFromGravity(Math.cos(b) * Math.sin(gm) * 9.81, -Math.sin(b) * 9.81), 'orientation'); });
 function recenterTilt() { tilt.neutral = tilt.raw; tilt.value = 0; }
 function tiltSteer(dt) { // deadzone + full lock + smoothing; returns -1..1 (right = +)
-  let d = tilt.raw - tilt.neutral; if (d > 180) d -= 360; if (d < -180) d += 360;
-  const m = Math.abs(d) < TILT_DEAD ? 0 : Math.sign(d) * Math.min(1, (Math.abs(d) - TILT_DEAD) / (TILT_LOCK - TILT_DEAD));
-  tilt.value += (m - tilt.value) * Math.min(1, dt * 12); return Math.abs(tilt.value) < .02 ? 0 : tilt.value;
+  const { dead, lock } = TILT_SENS[tiltSens] || TILT_SENS.high;
+  let d = tilt.raw - tilt.neutral; while (d > 180) d -= 360; while (d < -180) d += 360;
+  const m = Math.abs(d) < dead ? 0 : Math.sign(d) * Math.min(1, (Math.abs(d) - dead) / (lock - dead));
+  tilt.value += (m - tilt.value) * Math.min(1, dt * 20); return Math.abs(tilt.value) < .02 ? 0 : tilt.value;
 }
+window.__tt.wheelFromGravity = wheelFromGravity; window.__tt.tiltSteer = tiltSteer;
 function setSteerMode(m, save = true) { tilt.mode = m; document.body.classList.toggle('tilt', m === 'tilt'); $('smTilt').classList.toggle('sel', m === 'tilt'); $('smBtn').classList.toggle('sel', m !== 'tilt'); if (save) try { localStorage.setItem('tt_steer', m); } catch (_) {} }
 function fallbackButtons(why) { setSteerMode('buttons', false); toast(why); }
 let savedMode = null; try { savedMode = localStorage.getItem('tt_steer'); } catch (_) {}
 setSteerMode(savedMode || (IS_TOUCH ? 'tilt' : 'buttons'), false);
-if (IS_TOUCH || Q.has('tiltui')) $('steermode').style.display = 'flex';
-$('smTilt').addEventListener('click', () => setSteerMode('tilt')); $('smBtn').addEventListener('click', () => setSteerMode('buttons'));
+if (IS_TOUCH || Q.has('tiltui')) { $('steermode').style.display = 'flex'; document.body.classList.add('touchui'); }
+$('smTilt').addEventListener('click', () => setSteerMode('tilt'));
+function setSens(v) { tiltSens = v; try { localStorage.setItem('tt_sens', v); } catch (_) {} document.querySelectorAll('#sens button').forEach(b => b.classList.toggle('sel', b.dataset.s === v)); }
+document.querySelectorAll('#sens button').forEach(b => b.addEventListener('click', () => setSens(b.dataset.s))); setSens(TILT_SENS[tiltSens] ? tiltSens : 'high'); $('smBtn').addEventListener('click', () => setSteerMode('buttons'));
 let permAsked = false;
 function askTiltPermission() { // must run synchronously inside the START tap
   if (tilt.mode !== 'tilt' || permAsked) return; permAsked = true;
+  try { const DME = window.DeviceMotionEvent; if (DME && typeof DME.requestPermission === 'function') DME.requestPermission().catch(() => {}); } catch (_) {}
   const DOE = window.DeviceOrientationEvent;
   if (DOE && typeof DOE.requestPermission === 'function') {
     try { DOE.requestPermission().then(r => { tilt.perm = r; if (r !== 'granted') fallbackButtons('tilt not allowed: using buttons'); }).catch(() => { tilt.perm = 'denied'; fallbackButtons('tilt not allowed: using buttons'); }); } catch (_) { tilt.perm = 'denied'; fallbackButtons('tilt not allowed: using buttons'); }
@@ -445,8 +460,15 @@ function askTiltPermission() { // must run synchronously inside the START tap
 }
 function checkTiltSensor() { setTimeout(() => { if (tilt.mode === 'tilt' && !tilt.seen) fallbackButtons('no tilt sensor: using buttons'); }, 1500); }
 $('recenter').addEventListener('pointerdown', e => { e.preventDefault(); recenterTilt(); toast('recentered'); });
-$('go').addEventListener('pointerup', e => { e.preventDefault(); askTiltPermission(); startRace(); });
-$('go').addEventListener('click', e => { askTiltPermission(); if (race.state === 'menu') startRace(); });
+function lockLandscape() { try { const o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(() => {}); } catch (_) {} }
+// rotate-device overlay: decided only by the browser's screen orientation (never by tilt), debounced; while racing it needs >1 s of real portrait
+let portraitSince = 0;
+function isPortrait() { if (window.__tt.portraitOverride != null) return window.__tt.portraitOverride; if (screen.orientation && screen.orientation.type) return screen.orientation.type.startsWith('portrait'); return window.matchMedia ? matchMedia('(orientation: portrait)').matches : innerHeight > innerWidth; }
+setInterval(() => { const small = Math.min(screen.width || innerWidth, screen.height || innerHeight) <= 820 || IS_TOUCH; const p = small && isPortrait(); const now = performance.now();
+  if (!p) { portraitSince = 0; $('rot').style.display = 'none'; return; } if (!portraitSince) portraitSince = now;
+  const need = race.state === 'race' || race.state === 'count' ? 1000 : 250; $('rot').style.display = now - portraitSince > need ? 'flex' : 'none'; }, 150);
+$('go').addEventListener('pointerup', e => { e.preventDefault(); askTiltPermission(); lockLandscape(); startRace(); });
+$('go').addEventListener('click', e => { askTiltPermission(); lockLandscape(); if (race.state === 'menu') startRace(); });
 const band = d => { race.band = Math.max(0, Math.min(1, race.band + d)); };
 
 // ---------- input ----------

@@ -1,6 +1,6 @@
 <!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="apple-mobile-web-app-capable" content="yes"><meta name="robots" content="noindex,nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes"><link rel="manifest" href="manifest.json"><meta name="screen-orientation" content="landscape"><meta name="x5-orientation" content="landscape"><meta name="robots" content="noindex,nofollow">
 <title>Turbo Tempo Racing — prototype</title>
 <style>
 :root{--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px);--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px)}
@@ -34,6 +34,7 @@ body.tilt #bgas{width:112px;height:112px;font-size:20px}
 body.tilt #bdash{right:calc(36px + var(--sr));bottom:calc(140px + var(--sb));width:70px;height:70px;font-size:11px}
 #recenter{display:none;top:calc(46px + var(--st));right:calc(6px + var(--sr));width:auto;height:auto;border-radius:6px;padding:3px 7px;font-size:10px}
 body.tilt #recenter{display:block}
+#sens{display:none;gap:6px;margin-top:6px;font-family:system-ui}#sens button{font-size:13px;padding:5px 12px;margin:0;background:#334;border-width:2px}#sens button.sel{background:#3a8}body.tilt.touchui #sens{display:flex}
 #steermode{margin-top:8px;display:none;gap:8px;font-family:system-ui}#steermode button{font-size:15px;padding:7px 16px;margin:0;background:#334;border-width:2px}#steermode button.sel{background:#3a8;}
 @media (max-height:430px){body.tilt #bbrake{width:92px;height:92px}body.tilt #bdrift{width:72px;height:72px;bottom:calc(116px + var(--sb))}body.tilt #bgas{width:96px;height:96px}body.tilt #bdash{width:60px;height:60px;bottom:calc(120px + var(--sb))}}
 @media (max-height:430px){.btn{width:62px;height:62px}#br{left:calc(88px + var(--sl))}#bgas{width:84px;height:84px}#bbrake{right:calc(108px + var(--sr));width:56px;height:56px}#bdash{bottom:calc(108px + var(--sb));width:54px;height:54px;right:calc(24px + var(--sr))}#bdrift{right:calc(108px + var(--sr));bottom:calc(80px + var(--sb));width:54px;height:54px}}
@@ -43,7 +44,6 @@ body.tilt #recenter{display:block}
 #overlay button{margin-top:10px;font:inherit;font-size:22px;padding:10px 30px;border-radius:12px;border:3px solid #fff;background:#e33;color:#fff}
 #overlay table{font-family:system-ui;font-size:14px;border-collapse:collapse;margin:6px}#overlay td{padding:2px 10px;border-bottom:1px solid #fff3}
 #rot{display:none;position:fixed;inset:0;background:#000;z-index:9;align-items:center;justify-content:center;font-size:22px;text-align:center}
-@media (orientation:portrait) and (max-width:820px){#rot{display:flex}}
 </style></head><body>
 <div id="hud">
  <div id="place" class="box">-</div><div id="lap" class="box">LAP 1/3<br><span id="style">STYLE 0</span></div>
@@ -57,6 +57,7 @@ body.tilt #recenter{display:block}
  <p><b>Brass City</b> · 3 laps · Trombone Coupe</p>
  <p>Left thumb: steer ◀ ▶. Right thumb: hold <b>GAS</b> (or BRAKE). Keyboard: ↑/W gas, ↓/S brake, ←→/A D steer. <b>Drift:</b> hold DRIFT (or tap BRAKE while steering at speed; keyboard Shift) through a corner — sparks turn <span style='color:#5af'>blue</span> then <span style='color:#f90'>orange</span>; let go for a boost. Hit the piano ramp and drum pads, tap <b>FLIP</b> in the air. Find Backbeat Alley. Dodge stands, rolling timpani and the giant metronome. Style fills the <b>Band Meter</b> — more band joins in!</p>
  <div id="steermode"><span style="align-self:center;font-size:13px">Steering:</span><button id="smTilt">📱 TILT</button><button id="smBtn">◀ ▶ BUTTONS</button></div>
+ <div id="sens" class="tiltonly"><span style="align-self:center;font-size:12px">Tilt sensitivity:</span><button data-s="low">Low</button><button data-s="med">Med</button><button data-s="high">High</button></div>
  <button id="go">START</button><p style="font-size:11px;opacity:.6">Prototype · © 2026 Backline Vintage</p></div>
 <div id="rot">Turn your device sideways 🔄</div>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
