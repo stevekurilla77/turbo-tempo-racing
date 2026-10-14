@@ -24,13 +24,14 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 function vpSize() { const v = window.visualViewport; return [Math.round(v ? v.width : innerWidth), Math.round(v ? v.height : innerHeight)]; }
 renderer.setSize(...vpSize());
+document.documentElement.style.setProperty('--vvh', vpSize()[1] + 'px');
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xf7a35c);
 scene.fog = new THREE.Fog(0xf2a066, 120, 520);
 const camera = new THREE.PerspectiveCamera(68, vpSize()[0] / vpSize()[1], 0.5, 1200);
-function onResize() { const [w, h] = vpSize(); renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); window.scrollTo(0, 0); }
+function onResize() { const [w, h] = vpSize(); document.documentElement.style.setProperty('--vvh', h + 'px'); renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); window.scrollTo(0, 0); }
 addEventListener('resize', onResize); addEventListener('orientationchange', () => { onResize(); setTimeout(onResize, 300); setTimeout(onResize, 800); });
 if (window.visualViewport) visualViewport.addEventListener('resize', onResize);
 document.addEventListener('touchmove', e => e.preventDefault(), { passive: false });

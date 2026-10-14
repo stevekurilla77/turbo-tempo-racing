@@ -38,11 +38,18 @@ body.tilt #recenter{display:block}
 #steermode{margin-top:8px;display:none;gap:8px;font-family:system-ui}#steermode button{font-size:15px;padding:7px 16px;margin:0;background:#334;border-width:2px}#steermode button.sel{background:#3a8;}
 @media (max-height:430px){body.tilt #bbrake{width:92px;height:92px}body.tilt #bdrift{width:72px;height:72px;bottom:calc(116px + var(--sb))}body.tilt #bgas{width:96px;height:96px}body.tilt #bdash{width:60px;height:60px;bottom:calc(120px + var(--sb))}}
 @media (max-height:430px){.btn{width:62px;height:62px}#br{left:calc(88px + var(--sl))}#bgas{width:84px;height:84px}#bbrake{right:calc(108px + var(--sr));width:56px;height:56px}#bdash{bottom:calc(108px + var(--sb));width:54px;height:54px;right:calc(24px + var(--sr))}#bdrift{right:calc(108px + var(--sr));bottom:calc(80px + var(--sb));width:54px;height:54px}}
-#overlay{position:fixed;inset:0;background:radial-gradient(#3a1a6a,#0a0520);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:5;padding:var(--st) var(--sr) var(--sb) var(--sl);overflow:auto}
-#overlay h1{font-size:40px;margin:0;color:#ffd34d;text-shadow:4px 4px 0 #c03;font-style:italic;letter-spacing:2px}
-#overlay p{font-family:system-ui,sans-serif;max-width:600px;font-size:14px;line-height:1.35;margin:4px 16px}
-#overlay button{margin-top:10px;font:inherit;font-size:22px;padding:10px 30px;border-radius:12px;border:3px solid #fff;background:#e33;color:#fff}
-#overlay table{font-family:system-ui;font-size:14px;border-collapse:collapse;margin:6px}#overlay td{padding:2px 10px;border-bottom:1px solid #fff3}
+#overlay{position:fixed;left:0;top:0;width:100%;height:100vh;height:100dvh;height:var(--vvh,100dvh);box-sizing:border-box;background:radial-gradient(#3a1a6a,#0a0520);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:5;padding:var(--st) var(--sr) var(--sb) var(--sl);overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
+#overlay h1{font-size:clamp(22px,7vh,40px);line-height:1.05;margin:0 0 4px;color:#ffd34d;text-shadow:3px 3px 0 #c03;font-style:italic;letter-spacing:2px}
+#overlay p{font-family:system-ui,sans-serif;max-width:600px;font-size:clamp(10px,3.6vh,14px);line-height:1.3;margin:3px 0}
+#overlay #go,#overlay #again{margin-top:6px;font:inherit;font-size:clamp(18px,7vh,26px);padding:clamp(6px,2.4vh,12px) 36px;border-radius:12px;border:3px solid #fff;background:#e33;color:#fff;box-shadow:0 4px 0 #811}
+#overlay table{font-family:system-ui;font-size:clamp(11px,3.6vh,14px);border-collapse:collapse;margin:4px}#overlay td{padding:1px 10px;border-bottom:1px solid #fff3}
+#menu{display:flex;flex-direction:row;align-items:center;gap:18px;width:100%;max-width:980px;max-height:100%;box-sizing:border-box;padding:8px 14px}
+#menu .col-l{flex:1.4;min-width:0;max-height:calc(var(--vvh,100dvh) - 20px);overflow-y:auto;text-align:left}
+#menu .col-r{flex:1;min-width:200px;display:flex;flex-direction:column;align-items:center;gap:6px;position:sticky;bottom:0}
+#steermode,#sens{flex-wrap:wrap;justify-content:center}
+#steermode button,#sens button{font:inherit;font-family:system-ui;color:#fff;border:2px solid #fff;border-radius:9px;margin:0;cursor:pointer}
+@media (max-height:340px){#menu{gap:12px;padding:4px 10px}#steermode button{font-size:13px;padding:4px 10px}#sens button{font-size:12px;padding:3px 9px}#overlay p{line-height:1.22}}
+@media (max-width:620px) and (orientation:portrait){#menu{flex-direction:column}#menu .col-l{text-align:center;max-height:none}}
 #rot{display:none;position:fixed;inset:0;background:#000;z-index:9;align-items:center;justify-content:center;font-size:22px;text-align:center}
 </style></head><body>
 <div id="hud">
@@ -53,12 +60,15 @@ body.tilt #recenter{display:block}
  <div id="bl" class="btn">◀</div><div id="br" class="btn">▶</div>
  <div id="bbrake" class="btn">BRAKE</div><div id="bgas" class="btn">GAS</div><div id="bdash" class="btn">SLIDE<br>DASH</div><div id="bdrift" class="btn">DRIFT</div><div id="recenter" class="btn">⟳ RECENTER</div>
 </div>
-<div id="overlay"><h1>TURBO TEMPO<br>RACING</h1>
+<div id="overlay"><div id="menu">
+ <div class="col-l"><h1>TURBO TEMPO<br>RACING</h1>
  <p><b>Brass City</b> · 3 laps · Trombone Coupe</p>
- <p>Left thumb: steer ◀ ▶. Right thumb: hold <b>GAS</b> (or BRAKE). Keyboard: ↑/W gas, ↓/S brake, ←→/A D steer. <b>Drift:</b> hold DRIFT (or tap BRAKE while steering at speed; keyboard Shift) through a corner — sparks turn <span style='color:#5af'>blue</span> then <span style='color:#f90'>orange</span>; let go for a boost. Hit the piano ramp and drum pads, tap <b>FLIP</b> in the air. Find Backbeat Alley. Dodge stands, rolling timpani and the giant metronome. Style fills the <b>Band Meter</b> — more band joins in!</p>
+ <p><b>Tilt:</b> turn the phone like a steering wheel (or use ◀ ▶ buttons). Hold <b>GAS</b>; <b>BRAKE</b>. <b>Drift:</b> hold DRIFT (or brake while turning at speed) — sparks go <span style="color:#5af">blue</span> then <span style="color:#f90">orange</span>; let go to boost. Tap <b>FLIP</b> in the air off ramps and drum pads. Find Backbeat Alley; dodge stands, timpani and the giant metronome. Style fills the <b>Band Meter</b>. Keyboard: ↑ gas, ↓ brake, ←→ steer, Shift drift, Space dash.</p></div>
+ <div class="col-r">
  <div id="steermode"><span style="align-self:center;font-size:13px">Steering:</span><button id="smTilt">📱 TILT</button><button id="smBtn">◀ ▶ BUTTONS</button></div>
  <div id="sens" class="tiltonly"><span style="align-self:center;font-size:12px">Tilt sensitivity:</span><button data-s="low">Low</button><button data-s="med">Med</button><button data-s="high">High</button></div>
- <button id="go">START</button><p style="font-size:11px;opacity:.6">Prototype · © 2026 Backline Vintage</p></div>
+ <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype · © 2026 Backline Vintage</p></div>
+</div></div>
 <div id="rot">Turn your device sideways 🔄</div>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 <script type="module" src="game.js"></script>
