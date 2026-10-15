@@ -472,8 +472,8 @@ function openGarage() {
 function pickGarage(d) { if (race.state !== 'garage') return; gIdx = (gIdx + d + ROSTER.length) % ROSTER.length; showGarageCar(); sfx(d > 0 ? 659 : 587, .12, .12); }
 function raceFromGarage() { if (race.state !== 'garage') return; $('garage').style.display = 'none'; $('hud').style.display = ''; playerType = ROSTER[gIdx]; startRace(); }
 function renderGarage(dt) {
-  gT += dt; gAng += window.__tt.gzoom ? 0 : dt * .55; if (gMesh) { gMesh.rotation.y = gAng; const U = gMesh.userData.anim, fake = { v: 7, steer: Math.sin(gT * .8) * .6, dash: 0, boost: 0 };
-    for (const w of U.wheels) w.rotation.x += 7 * dt / U.r; for (const f of U.front) f.rotation.y = fake.steer * .4; if (U.tick) U.tick(fake, dt, 0, gT); for (const gl of U.glows) gl.material.opacity = .35 + Math.sin(gT * 3) * .1; }
+  gT += dt; if (window.__tt.gzoom) gAng = 0; else gAng += dt * .55; if (gMesh) { gMesh.rotation.y = gAng; const U = gMesh.userData.anim, fake = { v: 7, steer: Math.sin(gT * .8) * .6, dash: 0, boost: 0 };
+    for (const w of U.wheels) w.rotation.x += 7 * dt / U.r * (w.userData.k || 1); for (const f of U.front) f.rotation.y = fake.steer * .4; if (U.tick) U.tick(fake, dt, 0, gT); for (const gl of U.glows) gl.material.opacity = .35 + Math.sin(gT * 3) * .1; }
   const [w, h] = vpSize(), asp = w / h, half = Math.tan(19 * Math.PI / 180);
   const wide = asp > 1.15, d = wide ? 11 * Math.max(1, 1.9 / asp) : Math.max(11, 3.8 / (half * asp));
   gCam.aspect = asp; gCam.updateProjectionMatrix(); gCam.position.set(0, d * .36, d);
@@ -761,7 +761,7 @@ function syncMeshes() {
     if (c.air) pitch += -Math.atan(c.vy / Math.max(10, c.v)) * .5 + (c.trick >= 0 ? c.trick * Math.PI * 2 : 0);
     c.mesh.rotation.x = pitch; c.mesh.rotation.z = c.drift ? -c.drift * .12 : -c.steer * .06 * Math.min(1, c.v / 40);
     const U = c.mesh.userData.anim; if (U && !window.__tt.freeze) { // wheel spin, front-wheel steer, per-instrument animation, bell glow on boost
-      const sp = c.v * camDt / U.r; for (const w of U.wheels) w.rotation.x += sp; for (const f of U.front) f.rotation.y = c.steer * .4;
+      const sp = c.v * camDt / U.r; for (const w of U.wheels) w.rotation.x += sp * (w.userData.k || 1); for (const f of U.front) f.rotation.y = c.steer * .4;
       const pow = c.dash > 0 ? 1 : c.boost > 0 ? .75 : 0; if (U.tick) U.tick(c, camDt, pow, race.t + c.phase); if (U.beam) U.beam.visible = !c.air;
       for (const gl of U.glows) { gl.material.opacity = .3 + pow * .65; gl.scale.setScalar(1 + pow * .25); } }
     const sh = c.mesh.userData.shadow; sh.position.set(c.x, gy + .05 + (c.onRamp ? c.y : 0), c.z); sh.rotation.z = -c.h; sh.material.opacity = .35 / (1 + c.y * .25);

@@ -66,6 +66,8 @@ function driver(st, x, y, z, helm, visor) {
   const L = curLook, d = new THREE.Group(); d.position.set(x, y + .06, z); d.scale.setScalar(1.45); st.add(d);
   const skin = matte(L.skin), hair = matte(L.hair), dark = basic(0x1a1010), white = basic(0xffffff);
   P(d, cyl(.17, .24, .4, 12), helm, 0, -.36, -.04); P(d, cyl(.08, .08, .12, 10), skin, 0, -.17, 0); // suit + neck
+  for (const s of [-1, 1]) { P(d, cyl(.055, .05, .36, 8), helm, s * .19, -.31, .16, 2.08); P(d, sph(.055, 8, 6), skin, s * .18, -.4, .32); // arms + hands
+    P(d, cyl(.075, .07, .38, 8), helm, s * .2, -.6, .15, PI / 2); P(d, cyl(.065, .06, .3, 8), helm, s * .21, -.74, .33); P(d, box(.11, .08, .2), M.black, s * .21, -.9, .38); } // legs + shoes
   P(d, sph(.21, 18, 14), skin, 0, 0, .035);                                                   // head
   const H = ds(helm), front = PI / 2, gap = 1.1;                                            // open-face helmet: full cap + back/side shell
   P(d, shellG(0, PI * 2, 0, PI * .3), H, 0, 0, 0); P(d, shellG(front + gap, PI * 2 - 2 * gap, PI * .3, PI * .27), H, 0, 0, 0);
@@ -80,7 +82,7 @@ function driver(st, x, y, z, helm, visor) {
   // hair styles (visible below / out the back of the helmet)
   const back = (px, py, pz, r) => P(d, sph(r, 10, 8), hair, px, py, pz);
   if (L.style === 'ponytail') { back(0, .13, -.33, .1); back(0, .1, -.45, .09); back(0, .05, -.56, .08); back(0, -.02, -.65, .065); P(d, tor(.08, .025, PI * 2, 6, 12), basic(L.tie), 0, .13, -.35); }
-  else if (L.style === 'long') { P(d, box(.4, .5, .08), hair, 0, -.08, -.43, 1.0); P(d, sph(.2, 12, 8), hair, 0, -.08, -.16, 0, 0, 0, 1, .7, 1); for (const s of [-1, 1]) P(d, box(.07, .34, .12), hair, s * .21, -.14, -.02); }
+  else if (L.style === 'long') { P(d, sph(.2, 12, 10), hair, 0, -.1, -.36, 1.0, 0, 0, 1, 1.5, .5); P(d, sph(.14, 10, 8), hair, 0, -.22, -.52, 1.1, 0, 0, 1, 1.4, .5); P(d, sph(.2, 12, 8), hair, 0, -.08, -.16, 0, 0, 0, 1, .7, 1); for (const s of [-1, 1]) P(d, box(.07, .34, .12), hair, s * .21, -.14, -.02); }
   else if (L.style === 'pigtails') { for (const s of [-1, 1]) { back(s * .3, .0, -.12, .085); back(s * .4, -.04, -.17, .075); back(s * .48, -.1, -.22, .065); P(d, tor(.07, .022, PI * 2, 6, 12), basic(L.tie), s * .28, .02, -.12, 0, PI / 2); } }
   else if (L.style === 'puffs') { for (const s of [-1, 1]) back(s * .22, .12, -.16, .12); back(0, -.12, -.22, .12); P(d, tor(.1, .02, PI * 2, 6, 12), basic(L.tie), 0, -.06, -.2, .3); }
   else if (L.style === 'curly') { for (let k = 0; k < 7; k++) { const a = PI * (.15 + k * .7 / 6); back(Math.cos(a) * .24, -.13, -Math.sin(a) * .23, .065); } }
@@ -94,16 +96,12 @@ const beamG = G('beam', () => { const g = new THREE.BufferGeometry(); g.setAttri
 function headlights(st, x, y, z, w = .42, h = .1) {
   for (const s of [-1, 1]) { P(st, box(w, h, .05), M.head, s * x, y, z); P(st, circ(.26), haloM, s * x, y, z + .05, 0, 0, 0, w / .3, h / .1 * .7, 1); P(curBeams, beamG, beamM, s * x, .06, z + .1); }
 }
-// side-profile wedge body, extruded across the width
-function chassis(st, prof, w, mat, bev = .12) { const s = new THREE.Shape(); prof.forEach(([z, y], i) => i ? s.lineTo(z, y) : s.moveTo(z, y));
-  const g = new THREE.ExtrudeGeometry(s, { depth: w, bevelEnabled: true, bevelThickness: bev, bevelSize: bev * .8, bevelSegments: 2, curveSegments: 4 }); g.rotateY(-PI / 2); g.translate(w / 2, 0, 0); st.add(new THREE.Mesh(g, mat)); }
-function canopy(st, z, y, sx = .72, sy = .5, sz = 1.2) { P(st, dome(), M.glass, 0, y, z, 0, 0, 0, sx, sy, sz); }
 // a bell; dir 'back' (-z), 'fwd' (+z) or tilt angle for up. returns mouth center
 function bell(st, mat, x, y, z, s, sl, rx) { P(st, bellG, mat, x, y, z, rx, 0, 0, s, sl, s); const L = 6 * sl; return [x, y + Math.cos(rx) * L, z + Math.sin(rx) * L]; }
 function glowDisc(g, U, color, r, [x, y, z], rx = 0) { const m = P(g, circ(r), glowMat(color), x, y, z, rx); U.glows.push(m); return m; }
 // wheels: template baked once per car and cloned (shared geometry) onto 4 spin groups
-function wheels(g, U, o) {
-  const { r, w, x, zf, zr } = o, tpl = new THREE.Group(), ox = w / 2 + .01;
+function wheelTpl(o) {
+  const { r, w } = o, tpl = new THREE.Group(), ox = w / 2 + .01;
   P(tpl, cyl(r, r, w, 22), M.rubber, 0, 0, 0, 0, 0, PI / 2);
   P(tpl, tor(r - .07, .08, PI * 2, 6, 22), M.rubber, w / 2 - .02, 0, 0, 0, PI / 2);
   if (o.rim === 'drum') { // snare-drum wheel: white head, chrome hoop and tension lugs
@@ -117,163 +115,171 @@ function wheels(g, U, o) {
     for (let k = 0; k < n; k++) { const a = k * 2 * PI / n; P(tpl, box(.05, L, sw), o.spokeMat || M.brass, ox + .03, Math.cos(a) * L / 2, Math.sin(a) * L / 2, a); }
     P(tpl, cyl(r * .22, r * .22, .08, 14), o.hub, ox + .06, 0, 0, 0, 0, PI / 2);
   }
-  const baked = bake(tpl); U.r = r;
-  for (const [sx, z] of [[-1, zf], [1, zf], [-1, zr], [1, zr]]) {
-    const steer = new THREE.Group(); steer.position.set(sx * x, r, z); g.add(steer); const spin = new THREE.Group(); steer.add(spin);
-    const side = baked.clone(); side.rotation.y = sx < 0 ? PI : 0; spin.add(side); U.wheels.push(spin); if (z > 0) U.front.push(steer);
+  return bake(tpl);
+}
+function wheels(g, U, o) {
+  const { r, w, x, zf, zr } = o, baked = wheelTpl(o); U.r = r;
+  const front = o.rf ? wheelTpl({ ...o, r: o.rf, w: o.wf || w }) : baked, rF = o.rf || r, xF = o.xf || x;
+  for (const [sx, z] of [[-1, zf], [1, zf], [-1, zr], [1, zr]]) { const f = z === zf, rr = f ? rF : r;
+    const steer = new THREE.Group(); steer.position.set(sx * (f ? xF : x), rr, z); g.add(steer); const spin = new THREE.Group(); spin.userData.k = r / rr; steer.add(spin);
+    const side = (f ? front : baked).clone(); side.rotation.y = sx < 0 ? PI : 0; spin.add(side); U.wheels.push(spin); if (f) U.front.push(steer);
   }
 }
-const lights = (st, zt, yt, xt, zh, yh, xh) => { for (const s of [-1, 1]) { P(st, box(.45, .13, .05), M.tail, s * xt, yt, zt); } headlights(st, xh, yh, zh); };
 function finish(g, st, U, shadow) { g.add(bake(st)); if (curBeams.children.length) { U.beam = bake(curBeams); g.add(U.beam); } curBeams = new THREE.Group(); g.userData.anim = U; return { g, shadow }; }
 const newU = () => ({ wheels: [], front: [], glows: [], r: .55, tick: null });
 
-// ================= the cars =================
+// ================= the cars: the instrument IS the vehicle =================
+// helpers: straight rod between two points, round lamp (headlight) mounted on the instrument, axle with struts, flared bell
+function rod(par, a, b, r, mat, s = 8) { const A = new THREE.Vector3(...a), B = new THREE.Vector3(...b), d = B.clone().sub(A), L = d.length();
+  const m = new THREE.Mesh(cyl(r, r, L, s), mat); m.position.copy(A).add(B).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), d.normalize()); par.add(m); return m; }
+function lamp(par, x, y, z, r = .11) { P(par, cyl(r + .03, r + .03, .08, 16), M.chrome, x, y, z, PI / 2); P(par, circ(r), M.head, x, y, z + .045); P(par, circ(r * 2.3), haloM, x, y, z + .06); P(curBeams, beamG, beamM, x, .06, z + .1); }
+function axle(st, z, y, x, attach) { alongX(st, .05, 2 * x, M.chrome, 0, y, z, 8); for (const a of attach) rod(st, [a[0], y, z], a, .045, M.chrome); }
+const flare = (rb, rm, L, p = 4) => G(`fl${rb},${rm},${L},${p}`, () => { const v = []; for (let i = 0; i <= 16; i++) { const t = i / 16; v.push(new THREE.Vector2(rb + (rm - rb) * Math.pow(t, p), t * L)); } return new THREE.LatheGeometry(v, 26); });
+const bellBack = (st, mat, x, y, z, rb, rm, L, p) => { P(st, flare(rb, rm, L, p), mat, x, y, z, -PI / 2); P(st, tor(rm, .035, PI * 2, 6, 26), M.brass, x, y, z - L); return [x, y, z - L + .12]; };
+const TB = (pts, r, mat, st, seg = 32) => st.add(new THREE.Mesh(tube(pts, r, seg), mat));
 const BUILD = {
-  trombone() { // Trombone Super Racer: gold wedge, slide side tubes + U-bend that extends on boost, bell exhaust
-    const g = new THREE.Group(), st = new THREE.Group(), U = newU();
-    chassis(st, [[-2.25, .32], [-2.3, .92], [-1.55, 1.02], [-.9, 1.08], [.9, .92], [1.9, .66], [2.45, .48], [2.5, .32]], 1.9, M.brass);
-    P(st, box(.32, .04, 3.4), paint(0xb01828), 0, 1.0, .35, .14); P(st, box(2.25, .22, 3.9), M.rubber, 0, .3, .1);
-    canopy(st, -.35, 1.0, .72, .5, 1.25); driver(st, 0, 1.25, -.45, M.pearl, basic(0xffb020));
-    for (const x of [-.82, .82]) { alongZ(st, .13, .13, 2.6, M.brass, x, 1.12, -.4, 10); P(st, tor(.15, .04, PI * 2, 6, 12), M.chrome, x, 1.12, .9); }
+  trombone() { // a whole trombone lying flat: slide = nose, bell faces back, driver astride the tuning slide
+    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), Y = .95;
+    for (const x of [-.25, .25]) { alongZ(st, .065, .065, 2.3, M.chrome, x, Y, .95, 10); P(st, tor(.085, .03, PI * 2, 6, 12), M.brass, x, Y, -.2); }
+    rod(st, [-.25, Y, .05], [.25, Y, .05], .04, M.brass); P(st, sph(.05), M.brass, 0, Y, .05);                       // inner-slide brace
     const slide = new THREE.Group(); g.add(slide); const ss = new THREE.Group();
-    for (const x of [-.82, .82]) alongZ(ss, .09, .09, 2.2, M.chrome, x, 1.12, 1.4, 10);
-    P(ss, tor(.82, .1, PI), M.brass, 0, 1.12, 2.5, PI / 2); P(ss, sph(.14), M.chrome, 0, 1.12, 3.32); slide.add(bake(ss));
-    P(st, mouthG, M.chrome, 0, .9, 1.3, PI / 2);
-    P(st, tor(.45, .08, PI, 6, 16), M.brass, 0, 1.1, -1.6, 0, PI / 2, PI / 2); alongZ(st, .2, .2, .7, M.brass, 0, .7, -2.2, 10);
-    glowDisc(g, U, 0xff8a20, .5, bell(st, M.brassDS, 0, .7, -2.35, .22, .18, -PI / 2).map((v, i) => i === 2 ? v + .25 : v));
-    P(st, box(2.4, .08, .55), M.brass, 0, 1.62, -2.0, -.12); for (const x of [-1.2, 1.2]) P(st, box(.06, .4, .7), paint(0xb01828), x, 1.55, -2.0);
-    for (const x of [-.55, .55]) P(st, box(.08, .62, .14), M.chrome, x, 1.3, -2.0);
-    lights(st, -2.4, .78, .75, 2.62, .52, .7);
-    wheels(g, U, { r: .56, w: .52, x: 1.2, zf: 1.5, zr: -1.45, spokes: 6, hub: basic(0xffd040) });
-    U.tick = (c, dt, pow) => { slide.position.z += (pow * .8 - slide.position.z) * Math.min(1, dt * 10); };
-    return finish(g, st, U, [1.6, 2.8]);
+    for (const x of [-.25, .25]) { alongZ(ss, .088, .088, 2.15, M.brass, x, Y, 2.05, 12); P(ss, tor(.1, .025, PI * 2, 6, 12), M.brass, x, Y, 1.0); }
+    P(ss, tor(.25, .088, PI, 8, 18), M.brass, 0, Y, 3.12, PI / 2); P(ss, sph(.1), M.black, 0, Y, 3.45);              // slide crook + rubber stopper
+    rod(ss, [-.25, Y, 2.65], [.25, Y, 2.65], .04, M.brass); rod(ss, [-.48, Y, 2.95], [.48, Y, 2.95], .035, M.chrome);
+    lamp(ss, -.48, Y, 2.96, .1); lamp(ss, .48, Y, 2.96, .1); slide.add(bake(ss));
+    P(st, mouthG, M.chrome, -.25, Y, -.22, -PI / 2, 0, 0, 1.1, 1.1, 1.1);                                              // mouthpiece faces the driver
+    TB([[.25, Y, -.22], [.25, Y + .02, -.7], [.12, Y + .05, -1.2], [0, Y + .06, -1.6]], .085, M.brass, st);           // bell section
+    TB([[.18, Y, -.75], [.2, Y - .2, -.82], [.2, Y - .32, -1.0], [.2, Y - .2, -1.2], [.1, Y + .03, -1.28]], .07, M.brass, st); // tuning slide hairpin
+    rod(st, [-.25, Y, -.12], [.25, Y, -.12], .035, M.brass);                                                           // bell brace / slide lock
+    glowDisc(g, U, 0xff8a20, .62, bellBack(st, M.brassDS, 0, Y + .06, -1.6, .085, .82, 1.35, 4));
+    wheels(g, U, { r: .5, w: .45, x: 1.08, zf: 1.75, zr: -2.0, spokes: 6, hub: basic(0xffd040) });
+    axle(st, 1.75, .5, 1.08, [[-.25, Y, 1.75], [.25, Y, 1.75]]); axle(st, -2.0, .5, 1.08, [[-.15, Y - .1, -2.0], [.15, Y - .1, -2.0]]);
+    driver(st, 0, 1.85, -1.0, M.pearl, basic(0xffb020));
+    U.tick = (c, dt, pow) => { slide.position.z += (pow * .7 - slide.position.z) * Math.min(1, dt * 10); };
+    return finish(g, st, U, [1.4, 3.2]);
   },
-  trumpet() { // Trumpet Rocket: candy-red wedge, 3 valve pistons as engine stacks, leadpipe, bell exhaust
-    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), red = paint(0xc8182e);
-    chassis(st, [[-2.3, .32], [-2.35, .88], [-1.4, .98], [-.4, 1.0], [.9, .86], [2.0, .6], [2.55, .42], [2.6, .32]], 1.9, red);
-    P(st, box(2.2, .22, 4.0), M.rubber, 0, .3, 0); P(st, box(.16, .03, 3.2), M.brass, -.35, .99, .6, .12); P(st, box(.16, .03, 3.2), M.brass, .35, .99, .6, .12);
-    canopy(st, .55, .98, .7, .48, 1.15); driver(st, 0, 1.2, .45, M.pearl, basic(0x40e0ff));
-    const pist = [];
-    [-.75, -1.15, -1.55].forEach((z, k) => { P(st, cyl(.17, .17, .78, 14), M.brass, 0, 1.36, z); P(st, cyl(.2, .2, .08, 14), M.chrome, 0, 1.77, z); P(st, cyl(.2, .2, .08, 14), M.chrome, 0, .98, z);
-      const p = new THREE.Group(); p.position.set(0, 0, z); g.add(p); P(p, cyl(.04, .04, .3, 8), M.chrome, 0, 1.92, 0); P(p, cyl(.13, .13, .07, 14), M.pearl, 0, 2.07, 0); pist.push(p); });
-    alongZ(st, .07, .07, 1.0, M.brass, .22, 1.2, -1.15); alongZ(st, .07, .07, 1.0, M.brass, -.22, 1.48, -1.15);
-    st.add(new THREE.Mesh(tube([[.55, .72, 2.45], [.85, .98, 1.6], [.86, 1.02, 0], [.6, 1.15, -.5], [.17, 1.22, -.75]], .07), M.brass));
-    st.add(new THREE.Mesh(tube([[-.17, 1.22, -1.35], [-.7, 1.1, -1.0], [-.86, 1.02, 0], [-.86, 1.0, 1.2]], .08), M.brass)); P(st, sph(.11), M.chrome, -.86, 1.0, 1.25);
-    P(st, mouthG, M.chrome, .55, .72, 2.4, PI / 2, 0, 0, .9, .9, .9);
-    st.add(new THREE.Mesh(tube([[0, 1.0, -1.55], [0, .9, -1.85], [0, .86, -2.1]], .17, 8), M.brass));
-    glowDisc(g, U, 0xff5020, .45, bell(st, M.brassDS, 0, .86, -2.1, .2, .17, -PI / 2).map((v, i) => i === 2 ? v + .2 : v));
-    P(st, box(2.3, .08, .5), M.brass, 0, 1.62, -2.05, -.1); for (const x of [-1.15, 1.15]) P(st, box(.06, .36, .62), red, x, 1.55, -2.05); for (const x of [-.5, .5]) P(st, box(.08, .5, .12), M.chrome, x, 1.35, -2.05);
-    lights(st, -2.45, .74, .72, 2.68, .5, .68);
-    wheels(g, U, { r: .55, w: .5, x: 1.18, zf: 1.55, zr: -1.5, spokes: 5, spokeW: .12, spokeMat: M.chrome, rimMat: M.brass, hub: basic(0xff3048) });
-    U.tick = (c, dt, pow, t) => { const k = Math.min(1, c.v / 30) + pow; pist.forEach((p, i) => { p.position.y = -Math.max(0, Math.sin(t * (6 + k * 10) + i * 2.1)) * .14 * Math.min(1, k + .2); }); };
-    return finish(g, st, U, [1.55, 2.8]);
+  trumpet() { // a whole trumpet: 3 upright valves, mouthpiece forward, bell back, driver behind the valves
+    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), pist = [];
+    [.55, .25, -.05].forEach(z => { P(st, cyl(.15, .15, .75, 16), M.brass, 0, 1.05, z); P(st, cyl(.17, .17, .07, 16), M.chrome, 0, 1.46, z); P(st, cyl(.16, .16, .1, 16), M.chrome, 0, .64, z);
+      const p = new THREE.Group(); p.position.set(0, 0, z); g.add(p); P(p, cyl(.035, .035, .22, 8), M.chrome, 0, 1.58, 0); P(p, cyl(.11, .11, .06, 16), M.pearl, 0, 1.7, 0); pist.push(p); });
+    P(st, mouthG, M.chrome, -.24, .8, 2.3, PI / 2, 0, 0, 1.1, 1.1, 1.1);
+    TB([[-.24, .8, 2.3], [-.24, .8, 1.0], [-.24, .79, -.6], [-.24, .8, -1.12], [-.24, .93, -1.32], [-.22, 1.04, -1.12], [-.12, 1.02, -.4], [0, .95, -.08]], .06, M.brass, st, 48); // leadpipe + main tuning slide
+    TB([[0, 1.0, .62], [.04, 1.0, 1.35], [.12, 1.12, 1.72], [.22, 1.25, 1.4], [.24, 1.27, .4], [.24, 1.27, -.7], [.13, 1.27, -1.25], [0, 1.27, -1.5]], .075, M.brass, st, 48);        // front bow + bell pipe
+    TB([[.12, .9, .52], [.38, .9, .52], [.46, .9, .4], [.38, .9, .28], [.12, .9, .28]], .045, M.brass, st, 16);        // 1st valve slide
+    TB([[-.12, .98, -.05], [-.42, .98, -.05], [-.55, .98, -.22], [-.42, .98, -.4], [-.12, .98, -.32]], .045, M.brass, st, 16); P(st, tor(.06, .015, PI * 2, 6, 10), M.brass, -.55, .98, -.22, PI / 2);
+    rod(st, [0, 1.25, .25], [.24, 1.27, .25], .025, M.brass); P(st, tor(.05, .015, PI * 2, 6, 10), M.brass, .1, 1.3, .55, PI / 2); // brace + finger hook
+    glowDisc(g, U, 0xff5020, .55, bellBack(st, M.brassDS, 0, 1.27, -1.5, .075, .74, 1.5, 4));
+    lamp(st, -.06, 1.12, 1.8, .09); lamp(st, .32, 1.12, 1.62, .09);
+    wheels(g, U, { r: .5, w: .45, x: 1.08, zf: 1.4, zr: -1.95, spokes: 5, spokeW: .12, spokeMat: M.chrome, rimMat: M.brass, hub: basic(0xff3048) });
+    axle(st, 1.4, .5, 1.08, [[-.24, .8, 1.4], [.04, 1.0, 1.4]]); axle(st, -1.95, .5, 1.08, [[-.1, 1.2, -1.95], [.1, 1.2, -1.95]]);
+    driver(st, 0, 2.0, -.75, M.pearl, basic(0x40e0ff));
+    U.tick = (c, dt, pow, t) => { const k = Math.min(1, c.v / 30) + pow; pist.forEach((p, i) => { p.position.y = -Math.max(0, Math.sin(t * (6 + k * 10) + i * 2.1)) * .12 * Math.min(1, k + .2); }); };
+    return finish(g, st, U, [1.4, 3.0]);
   },
-  sax() { // Saxophone Groove GT: purple body, curved brass sax with pearl key pads along the right shoulder, upturned bell
-    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), pur = paint(0x5b2a9e);
-    chassis(st, [[-2.3, .32], [-2.3, .8], [-1.3, .92], [-.5, 1.02], [.8, .86], [1.9, .62], [2.5, .44], [2.55, .32]], 1.85, pur);
-    P(st, box(2.15, .22, 3.95), M.rubber, 0, .3, 0);
-    canopy(st, -.2, .98, .68, .48, 1.2); driver(st, -.05, 1.2, -.3, paint(0xffffff), basic(0xff40c0));
-    st.add(new THREE.Mesh(tube([[0, 1.0, 2.25], [.25, 1.28, 1.8], [.6, 1.25, 1.25], [.82, 1.12, .6]], .07, 16), M.brass));
-    st.add(new THREE.Mesh(tube([[.82, 1.12, .6], [.84, 1.08, -.4], [.84, 1.0, -1.4], [.84, .78, -2.0], [.84, .7, -2.3], [.84, .82, -2.55], [.84, 1.02, -2.6]], .15, 30), M.brass));
-    P(st, cyl(.06, .14, .45, 12), M.black, 0, .95, 2.42, PI / 2 + .3); P(st, tor(.1, .03, PI * 2, 6, 12), M.silver, 0, .99, 2.3, .3); // mouthpiece + ligature
-    glowDisc(g, U, 0xff60e0, .42, bell(st, M.brassDS, .84, 1.0, -2.6, .17, .12, -.35), -PI / 2 - .35);
-    [.35, 0, -.35, -.7, -1.05, -1.4, -1.7].forEach(z => { const y = z > -1.4 ? 1.27 : 1.2; P(st, cyl(.12, .12, .04, 14), M.brass, .84, y - .02, z); P(st, cyl(.09, .09, .05, 14), M.pearl, .84, y + .01, z); });
-    alongZ(st, .025, .025, 2.3, M.chrome, .62, 1.12, -.7, 6); [.2, -.5, -1.2].forEach(z => P(st, box(.24, .03, .04), M.chrome, .73, 1.18, z));
-    alongZ(st, .1, .1, 1.7, M.chrome, -1.04, .5, 0, 12); P(st, cyl(.13, .1, .2, 12), M.black, -1.04, .5, .92, PI / 2);
-    P(st, box(2.2, .07, .45), pur, 0, 1.5, -2.05, -.12); for (const x of [-1.1, 1.1]) P(st, box(.06, .4, .6), M.brass, x, 1.42, -2.05); P(st, box(.08, .5, .12), M.chrome, -.4, 1.2, -2.05);
-    lights(st, -2.4, .7, .72, 2.6, .5, .68);
-    wheels(g, U, { r: .55, w: .5, x: 1.18, zf: 1.5, zr: -1.5, spokes: 10, spokeW: .04, spokeMat: M.chrome, rimMat: M.brass, hub: basic(0xff40c0) });
-    return finish(g, st, U, [1.55, 2.8]);
+  sax() { // a whole alto sax on its side: neck + mouthpiece forward, conical body, U bow, bell flaring up at the back
+    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), Y = .95, rz = z => .13 + .2 * (1.6 - z) / 3.2;
+    alongZ(st, .13, .33, 3.2, M.brass, 0, Y, 0, 22);
+    TB([[0, Y + .02, 1.55], [0, Y + .06, 1.95], [0, Y + .2, 2.25], [0, Y + .26, 2.5]], .07, M.brass, st, 20);
+    P(st, cyl(.06, .12, .45, 14), M.black, 0, Y + .27, 2.72, PI / 2); P(st, tor(.11, .03, PI * 2, 6, 12), M.silver, 0, Y + .27, 2.62);
+    rod(st, [0, Y + .1, 1.85], [.0, Y + .2, 2.1], .02, M.chrome); P(st, cyl(.06, .06, .03, 10), M.brass, 0, Y + .25, 2.1);   // octave key
+    TB([[0, Y, -1.55], [0, Y - .02, -1.95], [0, Y + .32, -2.28], [0, Y + .78, -2.05], [0, Y + .92, -1.65]], .32, M.brass, st, 24); // bow
+    P(st, tor(.33, .03, PI * 2, 6, 20), M.brass, 0, Y, -1.58); P(st, tor(.33, .03, PI * 2, 6, 20), M.brass, 0, Y + .9, -1.66, PI / 2 - .5);
+    P(st, flare(.32, .74, .85, 3), M.brassDS, 0, Y + .9, -1.66, .5); P(st, tor(.74, .04, PI * 2, 6, 26), M.brass, 0, Y + .9 + .746, -1.66 + .407, PI / 2 + .5);
+    glowDisc(g, U, 0xff60e0, .58, [0, Y + 1.58, -1.32], -PI / 2 + .5);
+    [1.25, .95, .65, .3, -.05, -.4, -.75, -1.05, -1.35].forEach((z, i) => { const r = rz(z), a = .55; P(st, cyl(.11 + i * .008, .11 + i * .008, .06, 14), M.brass, Math.sin(a) * (r + .02), Y + Math.cos(a) * (r + .02), z, 0, 0, -a); });
+    [1.05, .8, .55, -.25, -.5, -.75].forEach(z => { const r = rz(z); P(st, cyl(.02, .02, .07, 6), M.chrome, -.06, Y + r + .02, z); P(st, cyl(.06, .06, .04, 12), M.pearl, -.06, Y + r + .06, z); });
+    rod(st, [.17, Y + .2, 1.35], [.3, Y + .26, -1.45], .022, M.chrome); rod(st, [.2, Y + .12, 1.0], [.32, Y + .16, -1.2], .018, M.chrome);
+    P(st, tor(.22, .02, PI, 6, 12), M.chrome, .3, Y - .1, -1.6, 0, PI / 2);                                             // key guard
+    lamp(st, -.22, Y, 1.66, .09); lamp(st, .22, Y, 1.66, .09); rod(st, [-.22, Y, 1.62], [.22, Y, 1.62], .025, M.chrome);
+    wheels(g, U, { r: .5, w: .45, x: 1.05, zf: 1.4, zr: -1.75, spokes: 10, spokeW: .04, spokeMat: M.chrome, rimMat: M.brass, hub: basic(0xff40c0) });
+    axle(st, 1.4, .5, 1.05, [[-.08, Y - .1, 1.4], [.08, Y - .1, 1.4]]); axle(st, -1.75, .5, 1.05, [[-.15, Y - .25, -1.85], [.15, Y - .25, -1.85]]);
+    driver(st, 0, 1.9, .2, M.pearl, basic(0xff40c0));
+    return finish(g, st, U, [1.4, 3.0]);
   },
-  tuba() { // Sousaphone Tank: tall blue truck, giant forward-facing bell, wraparound tubing around the driver
-    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), blu = paint(0x2a5cc8);
-    chassis(st, [[-2.35, .55], [-2.4, 1.2], [-1.4, 1.28], [1.3, 1.24], [2.2, 1.02], [2.55, .72], [2.55, .55]], 2.1, blu);
-    P(st, box(2.3, .3, 4.3), M.rubber, 0, .55, 0);
-    for (const x of [-.8, .8]) P(st, cyl(.06, .06, .7, 8), M.chrome, x, .9, 2.75); alongX(st, .07, 1.8, M.chrome, 0, 1.2, 2.75); alongX(st, .07, 1.8, M.chrome, 0, .7, 2.78);
-    P(st, box(1.7, .5, .06), M.glass, 0, 1.6, .95, -.35); driver(st, 0, 1.82, .3, paint(0xff8a20), basic(0x40e0ff)); P(st, box(.9, .25, .7), M.black, 0, 1.38, .1);
-    P(st, tor(1.02, .17, PI * 2, 8, 28), M.brass, 0, 1.5, .1, PI / 2 - .2);
-    st.add(new THREE.Mesh(tube([[0, 1.32, -.98], [0, 1.95, -1.3], [0, 2.62, -1.65]], .2, 12), M.brass));
-    glowDisc(g, U, 0x40e0ff, .62, bell(st, M.brassDS, 0, 2.62, -1.65, .27, .2, PI / 2).map((v, i) => i === 2 ? v - .25 : v));
-    [-.25, -.5, -.75].forEach(z => { P(st, cyl(.11, .11, .55, 12), M.brass, .95, 1.6, z); P(st, cyl(.08, .08, .06, 12), M.pearl, .95, 1.92, z); });
-    for (const x of [-.85, .85]) { P(st, cyl(.11, .11, 1.1, 12), M.chrome, x, 1.75, -2.1); P(st, cyl(.13, .13, .14, 12), M.black, x, 2.33, -2.1); }
-    lights(st, -2.52, 1.0, .8, 2.66, .9, .78);
-    wheels(g, U, { r: .72, w: .62, x: 1.3, zf: 1.6, zr: -1.55, spokes: 6, spokeW: .14, rimMat: M.chrome, hub: basic(0x40e0ff), lip: M.brass });
-    return finish(g, st, U, [1.8, 3.0]);
+  tuba() { // sousaphone: big brass coil standing like a ring around the driver, giant bell facing forward overhead
+    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), CY = 1.35, CZ = -.2;
+    P(st, tor(1.0, .19, PI * 2, 10, 36), M.brass, 0, CY, CZ, 0, PI / 2); P(st, tor(.82, .1, PI * 2, 8, 32), M.brass, .24, CY, CZ, 0, PI / 2);
+    for (const a of [.6, 2.4]) rod(st, [0, CY + Math.sin(a) * 1.0, CZ + Math.cos(a) * 1.0], [.24, CY + Math.sin(a) * .82, CZ + Math.cos(a) * .82], .05, M.brass);
+    TB([[0, CY + .95, CZ - .3], [0, CY + 1.2, CZ - .1], [0, CY + 1.2, CZ + .3]], .2, M.brass, st, 14);                  // bell neck
+    P(st, flare(.2, .82, 1.35, 3.2), M.brassDS, 0, CY + 1.2, CZ + .3, PI / 2); P(st, tor(.82, .04, PI * 2, 6, 30), M.brass, 0, CY + 1.2, CZ + 1.65);
+    [.3, .1, -.1].forEach(z => { P(st, cyl(.09, .09, .5, 14), M.brass, .45, 1.0, z); P(st, cyl(.11, .11, .05, 14), M.chrome, .45, 1.27, z); P(st, cyl(.07, .07, .05, 12), M.pearl, .45, 1.38, z); });
+    TB([[.45, .78, .3], [.3, .7, .55], [.1, .95, .6], [0, 1.25, .35], [0, 1.3, .15]], .05, M.brass, st, 20); P(st, mouthG, M.chrome, 0, 1.3, .15, -PI / 2);   // gooseneck + mouthpiece
+    lamp(st, -.52, CY + .7, CZ + 1.7, .12); lamp(st, .52, CY + .7, CZ + 1.7, .12);                                    // lamps in the bell rim
+    wheels(g, U, { r: .7, w: .6, x: 1.25, zf: 1.35, zr: -1.45, spokes: 6, spokeW: .14, rimMat: M.chrome, hub: basic(0x40e0ff), lip: M.brass });
+    axle(st, 1.35, .7, 1.25, [[-.12, CY - .3, CZ + .92], [.12, CY - .3, CZ + .92]]); axle(st, -1.45, .7, 1.25, [[-.12, CY - .3, CZ - .92], [.12, CY - .3, CZ - .92]]);
+    driver(st, 0, 1.38, -.3, paint(0xff8a20), basic(0x40e0ff));
+    return finish(g, st, U, [1.7, 2.9]);
   },
-  clarinet() { // Clarinet Dart: gloss-black needle with silver rings + ring keys, mouthpiece nose, open wheels
-    const g = new THREE.Group(), st = new THREE.Group(), U = newU();
-    alongZ(st, .45, .45, 3.2, M.black, 0, .8, -.2, 18); alongZ(st, .22, .45, 1.0, M.black, 0, .8, 1.9, 18);
-    alongZ(st, .1, .22, .5, M.black, 0, .8, 2.65, 14); P(st, tor(.2, .035, PI * 2, 6, 16), M.silver, 0, .8, 2.5); P(st, box(.16, .02, .45), paint(0xe8d8a0), 0, .62, 2.62, .12);
-    for (const z of [1.4, .4, -.95, -1.8]) P(st, tor(.46, .04, PI * 2, 6, 20), M.silver, 0, .8, z);
-    const cb = new THREE.LatheGeometry([[.45, 0], [.47, .25], [.55, .45], [.72, .68]].map(([a, b]) => new THREE.Vector2(a, b)), 18);
-    P(st, cb, M.blackDS, 0, .8, -1.8, -PI / 2); P(st, tor(.72, .04, PI * 2, 6, 22), M.silver, 0, .8, -2.48);
-    glowDisc(g, U, 0x9ff4ff, .55, [0, .8, -2.3]);
-    for (const z of [1.15, .9, .65, -1.15, -1.4]) { P(st, tor(.085, .025, PI * 2, 6, 12), M.silver, 0, 1.25, z, PI / 2); P(st, cyl(.05, .05, .02, 8), basic(0x050505), 0, 1.25, z); }
-    alongZ(st, .03, .03, 1.2, M.silver, .3, 1.18, .8, 6); alongZ(st, .03, .03, 1.0, M.silver, -.3, 1.18, -1.3, 6); for (const z of [.4, 1.2]) P(st, box(.14, .03, .1), M.silver, .3, 1.21, z);
-    P(st, tor(.36, .05, PI * 2, 6, 16), M.silver, 0, 1.22, -.3, PI / 2); P(st, box(.6, .25, .04), M.glass, 0, 1.33, .15, -.5); driver(st, 0, 1.38, -.35, M.silver, basic(0x3080ff));
-    for (const s of [-1, 1]) { P(st, box(.45, .4, 1.6), M.black, s * .62, .6, -.4); P(st, box(.47, .06, 1.62), M.silver, s * .62, .82, -.4);
-      for (const z of [1.5, -1.4]) { alongX(st, .035, .9, M.silver, s * .85, .62, z, 6); alongX(st, .035, .9, M.silver, s * .85, .82, z - .1, 6); } }
-    P(st, box(2.9, .06, .45), M.silver, 0, .3, 2.35); for (const s of [-1, 1]) P(st, box(.05, .3, .55), M.black, s * 1.45, .4, 2.35); alongZ(st, .04, .04, .5, M.silver, 0, .5, 2.3, 6);
-    P(st, box(2.2, .08, .5), M.black, 0, 1.7, -1.9, -.1); for (const s of [-1, 1]) { P(st, box(.05, .45, .65), M.silver, s * 1.1, 1.6, -1.9); P(st, box(.07, .6, .1), M.silver, s * .35, 1.35, -1.9); }
-    for (const s of [-1, 1]) { P(st, box(.3, .1, .05), M.tail, s * .5, .6, -1.25); } headlights(st, .3, .62, 2.6, .25, .08);
-    wheels(g, U, { r: .52, w: .42, x: 1.35, zf: 1.5, zr: -1.4, spokes: 10, spokeW: .035, spokeMat: M.silver, rimMat: M.black, lip: M.silver, hub: basic(0x9ff4ff) });
-    return finish(g, st, U, [1.6, 2.9]);
+  clarinet() { // long black clarinet dragster with silver keys; driver near the barrel
+    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), Y = .85;
+    alongZ(st, .08, .2, .55, M.black, 0, Y, 2.88, 16); P(st, box(.14, .02, .5), paint(0xe8d8a0), 0, Y - .16, 2.85, .2); P(st, tor(.19, .03, PI * 2, 6, 16), M.silver, 0, Y, 2.72);
+    alongZ(st, .27, .27, .5, M.black, 0, Y, 2.35, 18); for (const z of [2.6, 2.1]) P(st, tor(.27, .03, PI * 2, 6, 20), M.silver, 0, Y, z);     // barrel
+    alongZ(st, .24, .24, 2.0, M.black, 0, Y, 1.1, 18); alongZ(st, .25, .25, 2.0, M.black, 0, Y, -.9, 18); for (const z of [.1, -1.9]) P(st, tor(.255, .03, PI * 2, 6, 20), M.silver, 0, Y, z);
+    P(st, flare(.25, .58, .85, 2.5), M.blackDS, 0, Y, -1.9, -PI / 2); P(st, tor(.58, .03, PI * 2, 6, 22), M.silver, 0, Y, -2.75);
+    glowDisc(g, U, 0x9ff4ff, .45, [0, Y, -2.62]);
+    for (const z of [1.9, 1.62, 1.34, -.45, -.72, -1.0]) { P(st, tor(.075, .022, PI * 2, 6, 12), M.silver, 0, Y + .245, z, PI / 2); P(st, cyl(.045, .045, .02, 8), basic(0x050505), 0, Y + .25, z); }
+    for (const z of [.9, .6, -1.3, -1.55]) P(st, cyl(.06, .06, .03, 10), M.silver, .17, Y + .17, z, 0, 0, -.8);
+    rod(st, [.14, Y + .2, 2.0], [.14, Y + .2, .2], .022, M.silver); rod(st, [.2, Y + .12, 1.6], [.2, Y + .12, .4], .02, M.silver); rod(st, [.15, Y + .2, -.1], [.15, Y + .2, -1.6], .022, M.silver);
+    rod(st, [-.16, Y + .18, 1.0], [-.16, Y + .18, -.3], .02, M.silver); P(st, box(.05, .1, .12), M.silver, 0, Y - .27, 1.0); // side keys + thumb rest
+    lamp(st, -.3, Y, 2.66, .08); lamp(st, .3, Y, 2.66, .08);
+    wheels(g, U, { r: .72, rf: .42, w: .5, wf: .3, x: 1.12, xf: .72, zf: 2.25, zr: -1.45, spokes: 10, spokeW: .035, spokeMat: M.silver, rimMat: M.black, lip: M.silver, hub: basic(0x9ff4ff) });
+    axle(st, 2.25, .42, .72, [[0, Y - .2, 2.25]]); axle(st, -1.45, .72, 1.12, [[0, Y - .1, -1.45]]);
+    driver(st, 0, 1.85, 1.55, M.silver, basic(0x3080ff));
+    return finish(g, st, U, [1.3, 3.1]);
   },
-  snare() { // Snare Kart: kart frame, red snare drum engine with chrome lugs, tom nose, drumhead wheels, tapping sticks
-    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), red = paint(0xd02030);
-    P(st, box(2.0, .16, 3.9), M.black, 0, .35, 0); for (const s of [-1, 1]) alongZ(st, .06, .06, 2.0, M.chrome, s * 1.0, .5, 0, 8);
-    chassis(st, [[.6, .36], [.6, .72], [1.6, .7], [2.3, .5], [2.4, .36]], 1.3, red, .1);
-    alongZ(st, .34, .34, .42, red, 0, 1.0, 1.65, 18); P(st, cyl(.33, .33, .03, 18), M.pearl, 0, 1.0, 1.87, PI / 2); P(st, tor(.35, .035, PI * 2, 6, 18), M.chrome, 0, 1.0, 1.87);
-    P(st, box(.9, .45, .3), M.black, 0, .75, -.45); driver(st, 0, 1.15, -.1, red, basic(0xffffff)); P(st, tor(.18, .03, PI * 2, 6, 14), M.chrome, 0, 1.0, .45, -.6);
-    P(st, tor(.5, .05, PI, 6, 14), M.chrome, 0, .95, -.65);
-    P(st, cyl(.8, .8, .5, 24), red, 0, .85, -1.3); P(st, cyl(.79, .79, .03, 24), M.pearl, 0, 1.115, -1.3);
-    for (const y of [1.1, .6]) P(st, tor(.81, .05, PI * 2, 6, 24), M.chrome, 0, y, -1.3, PI / 2);
-    for (let k = 0; k < 8; k++) { const a = k * PI / 4; P(st, box(.09, .22, .1), M.chrome, Math.cos(a) * .84, .85, -1.3 + Math.sin(a) * .84, 0, -a); }
-    P(st, box(.06, .14, .2), M.chrome, .86, .85, -1.3);
-    alongX(st, .06, 2.1, M.chrome, 0, .45, -2.1, 8); alongX(st, .06, 1.9, M.chrome, 0, .45, 2.5, 8);
-    for (const s of [-1, 1]) P(st, box(.3, .12, .05), M.tail, s * .55, .55, -2.0); headlights(st, .38, .5, 2.42, .3, .1);
-    const sticks = [-1, 1].map(s => { const p = new THREE.Group(); p.position.set(s * .32, 1.32, -.55); g.add(p); const ps = new THREE.Group();
-      P(ps, cyl(.025, .04, 1.0, 8), M.stick, 0, 0, -.5, PI / 2 + .1); P(ps, sph(.055, 8, 6), M.stick, 0, -.05, -1.0); p.add(bake(ps)); return p; });
-    wheels(g, U, { r: .46, w: .46, x: 1.18, zf: 1.45, zr: -1.4, rim: 'drum', hub: basic(0xff3040) });
-    U.tick = (c, dt, pow, t) => { const k = Math.min(1, c.v / 25) + pow; sticks.forEach((p, i) => { p.rotation.x = .25 - Math.abs(Math.sin(t * (4 + 12 * k) + i * PI / 2)) * .3 * Math.min(1, k + .3); }); };
-    return finish(g, st, U, [1.5, 2.6]);
+  snare() { // a snare drum lying flat is the body; drumhead wheels; driver sits on the head drumming with sticks
+    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), red = paint(0xd02030), R = 1.05;
+    P(st, cyl(R, R, .5, 32), red, 0, .8, 0); P(st, cyl(R - .01, R - .01, .02, 32), M.pearl, 0, 1.06, 0); P(st, cyl(R - .01, R - .01, .02, 32), M.pearl, 0, .54, 0);
+    for (const y of [1.07, .53]) P(st, tor(R + .02, .045, PI * 2, 6, 36), M.chrome, 0, y, 0, PI / 2);
+    for (let k = 0; k < 10; k++) { const a = k * PI / 5 + PI / 10, cx = Math.cos(a), cz = Math.sin(a); P(st, box(.09, .22, .09), M.chrome, cx * (R + .04), .8, cz * (R + .04), 0, -a);
+      for (const [y0, y1] of [[.92, 1.07], [.53, .68]]) rod(st, [cx * (R + .05), y0, cz * (R + .05)], [cx * (R + .05), y1, cz * (R + .05)], .015, M.chrome, 6); }
+    P(st, box(.08, .2, .22), M.chrome, R + .07, .8, 0); P(st, box(.06, .08, .08), M.black, R + .12, .88, 0);           // strainer + throw-off
+    for (let k = -3; k <= 3; k++) P(st, box(.015, .015, 1.7), M.silver, k * .07, .52, 0);                                // snare wires
+    P(st, circ(.07), basic(0xffd040), 0, .8, R + .01);                                                                   // badge
+    lamp(st, -.42, .8, .97, .1); lamp(st, .42, .8, .97, .1);
+    wheels(g, U, { r: .46, w: .42, x: 1.32, zf: .85, zr: -.85, rim: 'drum', hub: basic(0xff3040) });
+    alongX(st, .05, 2.64, M.chrome, 0, .46, .85, 8); alongX(st, .05, 2.64, M.chrome, 0, .46, -.85, 8);
+    driver(st, 0, 1.83, -.45, red, basic(0xffffff));
+    const sticks = [-1, 1].map(s => { const p = new THREE.Group(); p.position.set(s * .26, 1.31, .0); g.add(p); const ps = new THREE.Group();
+      P(ps, cyl(.022, .035, .75, 8), M.stick, 0, 0, .37, PI / 2); P(ps, sph(.045, 8, 6), M.stick, 0, 0, .75); p.add(bake(ps)); return p; });
+    U.tick = (c, dt, pow, t) => { const k = Math.min(1, c.v / 25) + pow; sticks.forEach((p, i) => { p.rotation.x = .25 + Math.abs(Math.sin(t * (4 + 12 * k) + i * PI / 2)) * -.45 * Math.min(1, k + .3) + .2; }); };
+    return finish(g, st, U, [1.6, 1.6]);
   },
-  horn() { // French Horn Cruiser: violet cruiser, spinning coiled tubing on the rear deck, rotary valves, flared bell
-    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), vio = paint(0x6a30b8);
-    chassis(st, [[-2.3, .32], [-2.3, .85], [-1.6, .98], [-.6, 1.05], [.6, .95], [1.7, .7], [2.45, .48], [2.5, .32]], 1.95, vio);
-    P(st, box(2.2, .22, 3.95), M.rubber, 0, .3, 0); P(st, box(2.08, .05, .1), M.brass, 0, .7, 2.2); P(st, box(.05, .05, 4.2), M.brass, 1.05, .62, 0); P(st, box(.05, .05, 4.2), M.brass, -1.05, .62, 0);
-    canopy(st, .45, 1.0, .72, .5, 1.15); driver(st, 0, 1.24, .35, M.pearl, basic(0xffc030));
-    const coilY = new THREE.Group(); coilY.position.set(0, 1.78, -1.25); coilY.rotation.y = .75; g.add(coilY); const coil = new THREE.Group(); coilY.add(coil); const cs = new THREE.Group();
-    for (const R of [.72, .56, .4]) P(cs, tor(R, .07, PI * 2, 8, 28), M.brass, 0, 0, 0, 0, PI / 2);
-    for (const a of [0, PI / 2]) P(cs, cyl(.035, .035, 1.44, 6), M.brass, 0, 0, 0, a);
-    P(cs, cyl(.13, .13, .3, 12), M.chrome, 0, 0, 0, 0, 0, PI / 2); coil.add(bake(cs));
-    for (const z of [-.95, -1.25, -1.55]) { P(st, cyl(.1, .1, .22, 12), M.chrome, -.32, 1.3, z, 0, 0, PI / 2); P(st, box(.04, .04, .22), M.pearl, -.45, 1.38, z + .08); }
-    st.add(new THREE.Mesh(tube([[.1, 1.45, -1.45], [.45, 1.26, -1.62], [.62, 1.18, -1.8]], .1, 10), M.brass));
-    glowDisc(g, U, 0xc080ff, .52, bell(st, M.brassDS, .62, 1.18, -1.8, .22, .16, -PI / 2).map((v, i) => i === 2 ? v + .2 : v));
-    st.add(new THREE.Mesh(tube([[-.55, .9, 1.95], [-.78, 1.04, .9], [-.75, 1.18, -.3], [-.1, 1.5, -1.05]], .06, 20), M.brass)); P(st, mouthG, M.chrome, -.55, .88, 1.95, PI / 2, 0, 0, .9, .9, .9);
-    P(st, box(1.6, .05, .35), vio, 0, 1.12, -2.2, -.3);
-    lights(st, -2.4, .74, .75, 2.6, .5, .7);
-    wheels(g, U, { r: .55, w: .5, x: 1.18, zf: 1.5, zr: -1.5, spokes: 5, spokeW: .2, spokeMat: M.chrome, rimMat: M.brass, hub: basic(0xb070ff) });
-    U.tick = (c, dt, pow) => { coil.rotation.x += dt * (c.v * .08 + pow * 6); };
-    return finish(g, st, U, [1.55, 2.8]);
+  horn() { // French horn: round coiled body (nearly flat), rotary valves in the middle, big bell flaring back
+    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), CY = .95, CZ = .1;
+    const coil = new THREE.Group(); coil.position.set(0, CY, CZ); coil.rotation.x = .18; st.add(coil);
+    [.95, .82, .69].forEach((R, i) => P(coil, tor(R, .07, PI * 2, 8, 40), M.brass, 0, i * .05, 0, PI / 2));
+    [.0, .2, -.2].forEach((x, i) => { P(coil, cyl(.12, .12, .22, 14), M.brass, x, .2, -.1); P(coil, cyl(.13, .13, .03, 14), M.chrome, x, .32, -.1); });
+    for (let k = 0; k < 4; k++) { const a = k * PI / 2 + .4; rod(coil, [0, .2, -.1], [Math.cos(a) * .69, .1, Math.sin(a) * .69], .04, M.brass); }
+    TB([[-.25, 1.0, 1.55], [-.4, 1.02, 1.0], [-.3, 1.08, .55], [-.1, 1.12, .1]], .045, M.brass, st, 20); P(st, mouthG, M.chrome, -.25, 1.0, 1.55, PI / 2, 0, 0, 1.0, 1.0, 1.0);
+    const lev = [-1, 0, 1].map(i => { const p = new THREE.Group(); p.position.set(.35 + i * .02, 1.2, .35 - i * .14); g.add(p); P(p, box(.05, .03, .22), M.pearl, 0, 0, .08); return p; });
+    TB([[.95, CY + .05, CZ - .1], [.85, CY + .05, CZ - .6], [.55, CY + .1, -.8]], .1, M.brass, st, 16);
+    glowDisc(g, U, 0xc080ff, .62, bellBack(st, M.brassDS, .55, CY + .1, -.8, .1, .8, 1.6, 4));
+    lamp(st, -.42, CY + .12, CZ + .9, .1); lamp(st, .42, CY + .12, CZ + .9, .1);
+    wheels(g, U, { r: .5, w: .45, x: 1.18, zf: 1.4, zr: -1.4, spokes: 5, spokeW: .2, spokeMat: M.chrome, rimMat: M.brass, hub: basic(0xb070ff) });
+    axle(st, 1.4, .5, 1.18, [[-.3, CY + .05, CZ + .95 * .9], [.3, CY + .05, CZ + .95 * .9]]); axle(st, -1.4, .5, 1.18, [[-.3, CY - .05, CZ - .9], [.3, CY - .05, CZ - .9]]);
+    driver(st, 0, 1.95, -.05, M.pearl, basic(0xffc030));
+    U.tick = (c, dt, pow, t) => { lev.forEach((p, i) => { p.rotation.x = Math.max(0, Math.sin(t * 5 + i * 2)) * .3 * Math.min(1, c.v / 20 + .2); }); };
+    return finish(g, st, U, [1.4, 2.9]);
   },
-  xylo() { // Xylophone Speedster: rosewood body, rainbow bars on hood + deck, silver resonator side pods, mallet antennas
-    const g = new THREE.Group(), st = new THREE.Group(), U = newU();
-    chassis(st, [[-2.3, .32], [-2.3, .82], [-1.2, .92], [-.3, 1.0], [.9, .82], [1.9, .6], [2.5, .44], [2.55, .32]], 1.9, M.wood);
-    P(st, box(2.2, .22, 3.95), M.rubber, 0, .3, 0);
-    const RB = [0xff3b3b, 0xff9a2a, 0xffe03a, 0x3ad06a, 0x3a8cff, 0xa050ff, 0xff50b0, 0x40e0d0].map(c => std(c, .2, .25, { emissive: c, emissiveIntensity: .18 }));
-    for (let k = 0; k < 6; k++) { const z = 1.95 - k * .2, y = .6 + (1.9 - z) * .22 + .17; P(st, box(1.0 + k * .12, .07, .15), RB[k], 0, y, z, .22); }
-    for (const x of [-.4, .4]) P(st, box(.04, .04, 1.2), M.chrome, x, .78, 1.5, .22);
-    for (let k = 0; k < 4; k++) { const z = -1.25 - k * .2; P(st, box(1.5 - k * .1, .07, .15), RB[(k + 4) % 8], 0, 1.06 - k * .03, z); }
-    for (const s of [-1, 1]) for (let k = 0; k < 5; k++) { const h = .75 - k * .08; P(st, cyl(.09, .09, h, 12), M.silver, s * 1.06, .95 - h / 2, -.7 + k * .35); P(st, cyl(.1, .1, .03, 12), M.chrome, s * 1.06, .96, -.7 + k * .35); }
-    canopy(st, -.35, .98, .68, .48, 1.15); driver(st, 0, 1.2, -.45, paint(0x3ad06a), basic(0xffd040));
-    const mallets = [-1, 1].map((s, i) => { const p = new THREE.Group(); p.position.set(s * .75, 1.0, -2.1); g.add(p); const ms = new THREE.Group();
-      P(ms, cyl(.03, .03, 1.3, 6), M.stick, 0, .65, 0); P(ms, sph(.15, 10, 8), paint(i ? 0xff50b0 : 0x40e0d0), 0, 1.35, 0); p.add(bake(ms)); p.rotation.x = -.35; return p; });
-    lights(st, -2.4, .7, .75, 2.6, .5, .7);
+  xylo() { // xylophone: trapezoid rosewood frame, graduated rainbow bars, resonator tubes, driver at the low end with mallets
+    const g = new THREE.Group(), st = new THREE.Group(), U = newU(), NB = 11, Y = 1.0;
+    for (let k = 0; k < NB; k++) { const z = 2.0 - k * .34, L = 1.0 + k * .1, c = new THREE.Color().setHSL(k / NB * .85, .85, .55).getHex();
+      P(st, box(L, .09, .26), std(c, .15, .3, { emissive: c, emissiveIntensity: .15 }), 0, Y, z); const h = .22 + k * .03;
+      P(st, cyl(.08, .08, h, 12), M.silver, 0, Y - .06 - h / 2, z); for (const s of [-1, 1]) P(st, cyl(.012, .012, .1, 6), M.chrome, s * (L / 2 - .1), Y + .02, z + .17); }
+    for (const s of [-1, 1]) { rod(st, [s * .58, Y - .08, 2.25], [s * 1.08, Y - .08, -1.6], .06, M.wood); rod(st, [s * .5, Y - .02, 2.2], [s * 1.0, Y - .02, -1.55], .012, basic(0x301a10), 4);
+      rod(st, [s * .58, Y - .08, 2.25], [s * .58, .55, 2.25], .05, M.wood); }
+    rod(st, [-.58, Y - .08, 2.25], [.58, Y - .08, 2.25], .06, M.wood); rod(st, [-1.08, Y - .08, -1.6], [1.08, Y - .08, -1.6], .07, M.wood);
+    P(st, box(.7, .1, .45), M.wood, 0, Y - .05, -1.85);                                                                  // frame end-board the driver sits on
+    lamp(st, -.42, Y - .08, 2.32, .1); lamp(st, .42, Y - .08, 2.32, .1);
     const hub = new THREE.MeshBasicMaterial({ color: 0xff4040 });
-    wheels(g, U, { r: .55, w: .5, x: 1.18, zf: 1.5, zr: -1.5, spokes: 6, spokeMat: M.wood, rimMat: M.chrome, hub });
-    U.tick = (c, dt, pow, t) => { hub.color.setHSL((t * .25) % 1, 1, .55); mallets.forEach((m, i) => { m.rotation.x = -.35 - Math.min(.4, c.v * .006) + Math.sin(t * 9 + i) * .06; m.rotation.z = Math.sin(t * 7 + i * 2) * .07; }); };
-    return finish(g, st, U, [1.55, 2.8]);
+    wheels(g, U, { r: .5, w: .45, x: 1.22, zf: 1.6, zr: -1.45, spokes: 6, spokeMat: M.wood, rimMat: M.chrome, hub });
+    axle(st, 1.6, .5, 1.22, [[-.66, Y - .08, 1.6], [.66, Y - .08, 1.6]]); axle(st, -1.45, .5, 1.22, [[-1.06, Y - .08, -1.45], [1.06, Y - .08, -1.45]]);
+    driver(st, 0, 1.73, -1.95, paint(0x3ad06a), basic(0xffd040));
+    const mallets = [-1, 1].map((s, i) => { const p = new THREE.Group(); p.position.set(s * .26, 1.21, -1.49); g.add(p); const ms = new THREE.Group();
+      P(ms, cyl(.02, .02, .9, 6), M.stick, 0, 0, .45, PI / 2); P(ms, sph(.09, 10, 8), paint(i ? 0xff50b0 : 0x40e0d0), 0, 0, .92); p.add(bake(ms)); p.rotation.x = .12; return p; });
+    U.tick = (c, dt, pow, t) => { hub.color.setHSL((t * .25) % 1, 1, .55); mallets.forEach((m, i) => { m.rotation.x = .12 - Math.max(0, Math.sin(t * (5 + c.v * .15) + i * PI)) * .25; m.rotation.y = (i ? -1 : 1) * (.1 + .08 * Math.sin(t * 1.3 + i)); }); };
+    return finish(g, st, U, [1.5, 2.9]);
   },
 };
 export function buildCar(type) { curLook = LOOKS[type] || LOOKS.trombone; return BUILD[type](); }
