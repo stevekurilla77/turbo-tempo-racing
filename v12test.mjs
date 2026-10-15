@@ -1,0 +1,49 @@
+import { chromium } from 'playwright';
+const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+const b = await chromium.launch({ executablePath: EXE, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
+const base = process.argv[2] || 'http://127.0.0.1:8787/'; const mode = process.argv[3] || 'all';
+const errsOf = p => { const e = []; p.on('pageerror', x => e.push('pageerror ' + x)); p.on('console', m => (m.type() === 'error' || m.type() === 'warning') && e.push(m.type() + ' ' + m.text())); return e; };
+async function waitDone(p, label, max = 240) { for (let i = 0; i < max; i++) { await p.waitForTimeout(1000); const s = await p.evaluate(() => ({ st: __tt.race.state, lap: __tt.player.lap, idx: __tt.player.idx, place: __tt.race.place, errs: __tt.errors.length })); if (i % 15 === 0) console.log(label, JSON.stringify(s)); if (s.st === 'done') return s; } return null; }
+if (mode === 'all' || mode === 'shots') { // garage shots for every car + lineup (laptop size)
+  const p = await b.newPage({ viewport: { width: 1280, height: 720 } }); const e = errsOf(p);
+  await p.goto(base + '?cb=' + Date.now()); await p.waitForTimeout(1200);
+  await p.keyboard.press('Enter'); await p.waitForTimeout(500);
+  const roster = await p.evaluate(() => Object.keys(__tt.CARS));
+  for (let k = 0; k < roster.length; k++) { await p.evaluate(i => { while (__tt.garage.idx !== i) __tt.garage.pick(1); }, k); await p.waitForTimeout(700); await p.screenshot({ path: `shots/v12-garage-${roster[k]}.png` }); }
+  await p.keyboard.press('Escape'); await p.waitForTimeout(300);
+  await p.evaluate(() => { document.getElementById('overlay').style.display = 'none'; document.getElementById('hud').style.display = 'none'; __tt.lineup(); }); await p.waitForTimeout(800);
+  await p.screenshot({ path: 'shots/v12-lineup.png' });
+  console.log('shots errs', e); await p.close();
+}
+if (mode === 'all' || mode === 'laptop') { // keyboard: menu -> garage -> pick 3rd car -> autopilot full race
+  const p = await b.newPage({ viewport: { width: 1280, height: 720 } }); const e = errsOf(p);
+  await p.goto(base + '?autopilot&speed=4&cb=' + Date.now()); await p.waitForTimeout(1000);
+  const ui = await p.evaluate(() => ({ touchUI: __tt.touchUI, btnsVisible: [...document.querySelectorAll('#hud .btn')].filter(x => getComputedStyle(x).display !== 'none').length }));
+  await p.keyboard.press('Enter'); await p.waitForTimeout(400); await p.keyboard.press('ArrowRight'); await p.keyboard.press('ArrowRight'); await p.waitForTimeout(300);
+  await p.keyboard.press('Enter'); await p.waitForTimeout(1500);
+  const pc = await p.evaluate(() => ({ type: __tt.player.type, top: __tt.player.top, turn: __tt.player.turn, ai: __tt.cars.slice(1).map(c => c.type), calls: __tt.renderer.info.render.calls, tris: __tt.renderer.info.render.triangles }));
+  console.log('laptop', JSON.stringify(ui), JSON.stringify(pc));
+  await p.waitForTimeout(3000); await p.screenshot({ path: 'shots/v12-laptop-race.png' });
+  const d = await waitDone(p, 'laptop'); console.log('laptop done', JSON.stringify(d), JSON.stringify(await p.evaluate(() => __tt.race.results)));
+  await p.waitForTimeout(2500); await p.screenshot({ path: 'shots/v12-laptop-results.png' });
+  console.log('laptop errs', e); await p.close();
+}
+if (mode === 'all' || mode === 'iphone') { // touch: tap START -> garage -> next -> RACE; drive with on-screen touch state only (gas + ◀ ▶)
+  const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
+  const p = await ctx.newPage(); const e = errsOf(p);
+  await p.goto(base + '?speed=3&cb=' + Date.now()); await p.waitForTimeout(1200);
+  await p.screenshot({ path: 'shots/v12-iphone-title.png' });
+  await p.tap('#go', { force: true }); await p.waitForTimeout(600);
+  await p.tap('#gnext', { force: true }); await p.waitForTimeout(400); await p.tap('#gnext', { force: true }); await p.waitForTimeout(700);
+  await p.screenshot({ path: 'shots/v12-iphone-garage.png' });
+  const sel = await p.evaluate(() => __tt.garage.idx);
+  await p.tap('#grace', { force: true }); await p.waitForTimeout(800);
+  const ui = await p.evaluate(() => ({ state: __tt.race.state, type: __tt.player.type, touchUI: __tt.touchUI, visible: [...document.querySelectorAll('#hud .btn')].filter(x => getComputedStyle(x).display !== 'none').map(x => x.id), keysHint: getComputedStyle(document.getElementById('keys')).display }));
+  console.log('iphone sel', sel, JSON.stringify(ui));
+  // drive using the same touch flags the ◀ ▶ / GAS buttons set
+  await p.evaluate(() => { setInterval(() => { const t = __tt.touch, s = __tt.aiSteer(); t.gas = 1; t.l = s < -.15 ? 1 : 0; t.r = s > .15 ? 1 : 0; }, 30); });
+  await p.waitForTimeout(6000); await p.screenshot({ path: 'shots/v12-iphone-hud.png' });
+  const d = await waitDone(p, 'iphone'); console.log('iphone done', JSON.stringify(d), JSON.stringify(await p.evaluate(() => ({ r: __tt.race.results, dashes: __tt.race.stats.dashes, tricks: __tt.race.stats.tricks }))));
+  console.log('iphone errs', e); await ctx.close();
+}
+await b.close();
