@@ -15,7 +15,7 @@ const STEER_PRESETS = {
 // alignFree/alignSteer: road-assist strength when not steering / while steering; edgePush: nudge back from the curb
 const STEER = STEER_PRESETS[new URLSearchParams(location.search).get('steer') === 'smooth' ? 'smooth' : 'sensitive'];
 // =================================================================
-const LAPS = 3, W = 16, N = 600;
+const LAPS = 3, W = 28, N = 600;
 const rand = (a, b) => a + Math.random() * (b - a);
 let seed = 7; const srand = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
 
@@ -108,7 +108,7 @@ ribbon(W / 2 + 1.2, W / 2 + 8, 0.12, new THREE.MeshLambertMaterial({ map: walkTe
 // piano-key crosswalks
 function crosswalk(i0) {
   const white = new THREE.MeshLambertMaterial({ color: 0xf6f3ea }), black = new THREE.MeshLambertMaterial({ color: 0x15151a });
-  const grp = new THREE.Group(); const keys = 14, kw = W / keys;
+  const grp = new THREE.Group(); const keys = 24, kw = W / keys;
   for (let k = 0; k < keys; k++) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(kw * 0.92, 0.04, 6), white); m.position.set(-W / 2 + kw * (k + .5), 0.05, 0); grp.add(m);
     if ([0, 1, 3, 4, 5].includes(k % 7) && k < keys - 1) { const b = new THREE.Mesh(new THREE.BoxGeometry(kw * .6, 0.06, 3.6), black); b.position.set(-W / 2 + kw * (k + 1), 0.08, -1.2); grp.add(b); }
@@ -275,7 +275,7 @@ const player = makeCar('trombone', true, 0);
 function gridUp() {
   const order = [cars[1], cars[2], cars[3], cars[4], player];
   order.forEach((c, k) => {
-    const i = (N - 6 - k * 5) % N, side = k === 4 ? 0 : (k % 2 ? 3.5 : -3.5);
+    const i = (N - 6 - k * 5) % N, side = k === 4 ? 0 : (k % 2 ? 6 : -6);
     Object.assign(c, { idx: i, x: P[i].x + S[i].x * side, z: P[i].z + S[i].z * side, h: Math.atan2(T[i].x, T[i].z), v: 0, lap: -1, maxIdx: N,
       boost: 0, dash: 0, meter: 0, finished: false, finishTime: 0, hitT: 9, lat: side, steer: 0,
       y: 0, vy: 0, air: false, onRamp: false, trick: -1, drift: 0, driftT: 0, tier: 0, px: 0, pz: 0, grip: 0, moveCD: rand(6, 10),
@@ -336,7 +336,7 @@ function addStand(x, y, z, rotY) {
   const home = new THREE.Vector3(x, y, z); g.position.copy(home); g.rotation.y = rotY; scene.add(g);
   stands.push({ g, x, z, y, home, rotY, down: 0, vx: 0, vz: 0, spin: 0 });
 }
-for (const [i, l] of [[100, -4], [195, 3.5], [300, -3], [480, 4], [575, -3]]) { const p = P[i].clone().addScaledVector(S[i], l); addStand(p.x, E[i], p.z, Math.atan2(T[i].x, T[i].z)); }
+for (const [i, l] of [[100, -7], [195, 6], [300, -5], [480, 7], [575, -5]]) { const p = P[i].clone().addScaledVector(S[i], l); addStand(p.x, E[i], p.z, Math.atan2(T[i].x, T[i].z)); }
 function restoreStand(s) { s.down = 0; s.x = s.home.x; s.z = s.home.z; s.g.position.copy(s.home); s.g.rotation.set(0, s.rotY, 0); }
 
 // shortcut alley: cobblestones, brick walls, a neon sign, two stands inside
@@ -372,19 +372,19 @@ const timps = [0, 1].map(k => {
   const head = new THREE.Mesh(new THREE.CircleGeometry(1.6, 20), new THREE.MeshLambertMaterial({ color: 0xf3ead2, side: THREE.DoubleSide })); head.rotation.x = -Math.PI / 2; inner.add(head);
   const rim = new THREE.Mesh(new THREE.TorusGeometry(1.62, .1, 6, 24), silverMat); rim.rotation.x = Math.PI / 2; inner.add(rim);
   inner.rotation.z = Math.PI / 2; scene.add(g);
-  return { g, inner, s: TIMP_TOP - k * 30, lat: k ? 3 : -3, wait: k * 1.5, x: 0, z: 0, y: 0 };
+  return { g, inner, s: TIMP_TOP - k * 30, lat: k ? 5 : -5, wait: k * 1.5, x: 0, z: 0, y: 0 };
 });
 function stepTimps(dt) {
   for (const t of timps) {
     if (t.wait > 0) { t.wait -= dt; t.g.visible = false; t.x = t.z = 1e6; continue; }
     t.g.visible = true; t.s -= dt * 10 / SEG; // ~10 u/s downhill (toward the climbing cars)
-    if (t.s < TIMP_BOT) { t.s = TIMP_TOP; t.lat = [-5, -2, 1.5, 4.5][Math.floor(Math.random() * 4)]; t.wait = rand(.5, 2); }
+    if (t.s < TIMP_BOT) { t.s = TIMP_TOP; t.lat = [-9, -4.5, 0, 4.5, 9][Math.floor(Math.random() * 5)]; t.wait = rand(.5, 2); }
     const i = Math.floor(t.s), p = P[i], sd = S[i]; t.x = p.x + sd.x * t.lat; t.z = p.z + sd.z * t.lat; t.y = E[i] + 1.6;
     t.g.position.set(t.x, t.y, t.z); t.g.rotation.y = Math.atan2(T[i].x, T[i].z) + Math.PI / 2; t.inner.rotation.x -= dt * 6;
   }
 }
 // giant metronome swing gate: brass gantry with a swinging arm + weight across the road
-const METRO_I = 70, METRO_PIV = 15.5, METRO_L = 14, METRO_MAX = .95, METRO_PERIOD = 2.4;
+const METRO_I = 70, METRO_PIV = 22, METRO_L = 20.5, METRO_MAX = .95, METRO_PERIOD = 2.4;
 const metro = (() => {
   const i = METRO_I, p = P[i], g = new THREE.Group(); g.position.copy(p); g.rotation.y = Math.atan2(T[i].x, T[i].z); scene.add(g);
   const wood = new THREE.MeshStandardMaterial({ color: 0x5a2d1a, roughness: .6 });
@@ -412,64 +412,19 @@ function startRace() {
   Object.assign(race, { state: 'count', t: 0, countdown: 3.999, style: 0, band: .35, results: null, musicOn: true, lastPlace: 5 });
   cars.forEach(c => { if (!c.isPlayer) c.useAlley = Math.random() < .3; }); player.useAlley = AUTOPILOT;
   step = 0; nextT = AC ? AC.currentTime + .1 : 0; $('overlay').style.display = 'none';
-  if (tilt.mode === 'tilt') { recenterTilt(); checkTiltSensor(); }
 }
 
-// ---------- tilt steering ----------
+// ---------- touch detection (on-screen buttons + keyboard steering) ----------
 const IS_TOUCH = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0 || (window.matchMedia && matchMedia('(pointer: coarse)').matches);
-// sensitivity presets (degrees of steering-wheel rotation): deadzone and full lock
-const TILT_SENS = { low: { dead: 2.5, lock: 22 }, med: { dead: 2, lock: 16 }, high: { dead: 1.5, lock: 12 } };
-let tiltSens = 'high'; try { tiltSens = localStorage.getItem('tt_sens') || 'high'; } catch (_) {}
-const tilt = { mode: 'buttons', raw: 0, neutral: 0, value: 0, seen: false, motionSeen: false, lastT: 0, perm: 'unknown', src: 'none' };
-window.__tt.tilt = tilt;
-function orientAngle() { if (window.__tt.angleOverride != null) return window.__tt.angleOverride; const a = screen.orientation && typeof screen.orientation.angle === 'number' ? screen.orientation.angle : (typeof window.orientation === 'number' ? window.orientation : 90); return ((a % 360) + 360) % 360; }
-// Steering-wheel angle = rotation of the phone about the axis through the screen.
-// Gravity's direction within the screen plane gives that directly: phi = atan2(-gx, gy) (device coords),
-// clockwise turn (seen from the front) = positive = steer right. We always use the angle RELATIVE to the
-// calibrated neutral, so it works in either landscape orientation and is immune to the iOS/Android sign flip
-// of accelerationIncludingGravity (flipping both components shifts every reading by 180°, deltas are unchanged).
-function wheelFromGravity(gx, gy) { if (Math.hypot(gx, gy) < 2) return null; return Math.atan2(-gx, gy) * 180 / Math.PI; } // null when the phone is nearly flat
-function setRaw(v, src) { if (v == null) return; tilt.raw = v; tilt.seen = true; tilt.lastT = performance.now(); tilt.src = src; }
-addEventListener('devicemotion', e => { const g = e.accelerationIncludingGravity; if (!g || g.x == null || g.y == null) return; tilt.motionSeen = true; setRaw(wheelFromGravity(g.x, g.y), 'motion'); });
-addEventListener('deviceorientation', e => { // fallback only if no motion data: rebuild the gravity vector from beta/gamma
-  if (tilt.motionSeen || e.beta == null || e.gamma == null) return;
-  const b = e.beta * Math.PI / 180, gm = e.gamma * Math.PI / 180; setRaw(wheelFromGravity(Math.cos(b) * Math.sin(gm) * 9.81, -Math.sin(b) * 9.81), 'orientation'); });
-function recenterTilt() { tilt.neutral = tilt.raw; tilt.value = 0; }
-function tiltSteer(dt) { // deadzone + full lock + smoothing; returns -1..1 (right = +)
-  const { dead, lock } = TILT_SENS[tiltSens] || TILT_SENS.high;
-  let d = tilt.raw - tilt.neutral; while (d > 180) d -= 360; while (d < -180) d += 360;
-  const m = Math.abs(d) < dead ? 0 : Math.sign(d) * Math.min(1, (Math.abs(d) - dead) / (lock - dead));
-  tilt.value += (m - tilt.value) * Math.min(1, dt * 20); return Math.abs(tilt.value) < .02 ? 0 : tilt.value;
-}
-window.__tt.wheelFromGravity = wheelFromGravity; window.__tt.tiltSteer = tiltSteer;
-function setSteerMode(m, save = true) { tilt.mode = m; document.body.classList.toggle('tilt', m === 'tilt'); $('smTilt').classList.toggle('sel', m === 'tilt'); $('smBtn').classList.toggle('sel', m !== 'tilt'); if (save) try { localStorage.setItem('tt_steer', m); } catch (_) {} }
-function fallbackButtons(why) { setSteerMode('buttons', false); toast(why); }
-let savedMode = null; try { savedMode = localStorage.getItem('tt_steer'); } catch (_) {}
-setSteerMode(savedMode || (IS_TOUCH ? 'tilt' : 'buttons'), false);
-if (IS_TOUCH || Q.has('tiltui')) { $('steermode').style.display = 'flex'; document.body.classList.add('touchui'); }
-$('smTilt').addEventListener('click', () => setSteerMode('tilt'));
-function setSens(v) { tiltSens = v; try { localStorage.setItem('tt_sens', v); } catch (_) {} document.querySelectorAll('#sens button').forEach(b => b.classList.toggle('sel', b.dataset.s === v)); }
-document.querySelectorAll('#sens button').forEach(b => b.addEventListener('click', () => setSens(b.dataset.s))); setSens(TILT_SENS[tiltSens] ? tiltSens : 'high'); $('smBtn').addEventListener('click', () => setSteerMode('buttons'));
-let permAsked = false;
-function askTiltPermission() { // must run synchronously inside the START tap
-  if (tilt.mode !== 'tilt' || permAsked) return; permAsked = true;
-  try { const DME = window.DeviceMotionEvent; if (DME && typeof DME.requestPermission === 'function') DME.requestPermission().catch(() => {}); } catch (_) {}
-  const DOE = window.DeviceOrientationEvent;
-  if (DOE && typeof DOE.requestPermission === 'function') {
-    try { DOE.requestPermission().then(r => { tilt.perm = r; if (r !== 'granted') fallbackButtons('tilt not allowed: using buttons'); }).catch(() => { tilt.perm = 'denied'; fallbackButtons('tilt not allowed: using buttons'); }); } catch (_) { tilt.perm = 'denied'; fallbackButtons('tilt not allowed: using buttons'); }
-  } else tilt.perm = DOE ? 'granted' : 'none';
-}
-function checkTiltSensor() { setTimeout(() => { if (tilt.mode === 'tilt' && !tilt.seen) fallbackButtons('no tilt sensor: using buttons'); }, 1500); }
-$('recenter').addEventListener('pointerdown', e => { e.preventDefault(); recenterTilt(); toast('recentered'); });
 function lockLandscape() { try { const o = screen.orientation; if (o && o.lock) o.lock('landscape').catch(() => {}); } catch (_) {} }
-// rotate-device overlay: decided only by the browser's screen orientation (never by tilt), debounced; while racing it needs >1 s of real portrait
+// rotate-device overlay: decided only by the browser's screen orientation , debounced; while racing it needs >1 s of real portrait
 let portraitSince = 0;
 function isPortrait() { if (window.__tt.portraitOverride != null) return window.__tt.portraitOverride; if (screen.orientation && screen.orientation.type) return screen.orientation.type.startsWith('portrait'); return window.matchMedia ? matchMedia('(orientation: portrait)').matches : innerHeight > innerWidth; }
 setInterval(() => { const small = Math.min(screen.width || innerWidth, screen.height || innerHeight) <= 820 || IS_TOUCH; const p = small && isPortrait(); const now = performance.now();
   if (!p) { portraitSince = 0; $('rot').style.display = 'none'; return; } if (!portraitSince) portraitSince = now;
   const need = race.state === 'race' || race.state === 'count' ? 1000 : 250; $('rot').style.display = now - portraitSince > need ? 'flex' : 'none'; }, 150);
-$('go').addEventListener('pointerup', e => { e.preventDefault(); askTiltPermission(); lockLandscape(); startRace(); });
-$('go').addEventListener('click', e => { askTiltPermission(); lockLandscape(); if (race.state === 'menu') startRace(); });
+$('go').addEventListener('pointerup', e => { e.preventDefault(); lockLandscape(); startRace(); });
+$('go').addEventListener('click', e => { lockLandscape(); if (race.state === 'menu') startRace(); });
 const band = d => { race.band = Math.max(0, Math.min(1, race.band + d)); };
 
 // ---------- input ----------
@@ -504,7 +459,7 @@ function aiControl(c, dt) {
   // returns { steer, drift, trick, gas }
   const out = { steer: 0, drift: 0, trick: 0, gas: 1 };
   const look = Math.round(7 + c.v * .14);
-  let lane = RL[(c.idx + look) % N] * .85 + Math.sin(race.t * .4 + c.phase) * 1.6 + (c.isPlayer ? 0 : (c.slot - 2.5) * .5);
+  let lane = RL[(c.idx + look) % N] * .85 + Math.sin(race.t * .4 + c.phase) * 2.8 + (c.isPlayer ? 0 : (c.slot - 2.5) * .9);
   if (!c.isPlayer && race.state === 'race') {
     const g = gap(c, player); // >0: player ahead of me
     // block: player close behind me -> move into their lane
@@ -555,7 +510,6 @@ function stepCar(c, dt) {
   const racing = race.state === 'race' && !c.finished;
   if (c.isPlayer && !AUTOPILOT && !c.finished) {
     steer = (keys.ArrowRight || keys.KeyD || touch.r ? 1 : 0) - (keys.ArrowLeft || keys.KeyA || touch.l ? 1 : 0);
-    if (tilt.mode === 'tilt' && steer === 0) steer = tiltSteer(dt);
     brake = keys.ArrowDown || keys.KeyS || touch.brake ? 1 : 0;
     gas = racing && (keys.ArrowUp || keys.KeyW || touch.gas) ? 1 : 0;
     driftIn = touch.drift || keys.ShiftLeft || keys.ShiftRight || keys.KeyX ? 1 : 0;
@@ -721,7 +675,7 @@ function collide() {
 function sim(dt) {
   if (race.state === 'count') {
     const before = Math.ceil(race.countdown); race.countdown -= dt; const after = Math.ceil(race.countdown);
-    if (after !== before) { if (after > 0) { flash(String(after)); sfx(392, .2); } else { flash('GO!'); sfx(784, .5, .35); race.state = 'race'; if (tilt.mode === 'tilt') recenterTilt(); } }
+    if (after !== before) { if (after > 0) { flash(String(after)); sfx(392, .2); } else { flash('GO!'); sfx(784, .5, .35); race.state = 'race'; } }
   }
   if (race.state === 'race' || race.state === 'done') race.t += dt;
   // metronome swing (always), tick when crossing center
@@ -752,7 +706,7 @@ function syncMeshes() {
   }
   const f = tmp.set(Math.sin(player.vh * .5 + player.h * .5), 0, Math.cos(player.vh * .5 + player.h * .5));
   const py = (player.alley ? 0 : E[player.idx]) + player.y * .7;
-  const want = new THREE.Vector3(player.x, py, player.z).addScaledVector(f, -10.5); want.y += 4.4;
+  const want = new THREE.Vector3(player.x, py, player.z).addScaledVector(f, -11.5); want.y += 5;
   const look = new THREE.Vector3(player.x, py + 1.6, player.z).addScaledVector(f, 7);
   if (!camInit) { camPos.copy(want); camLook.copy(look); camInit = true; }
   const k = 1 - Math.exp(-camDt * 9); camPos.lerp(want, k); camLook.lerp(look, Math.min(1, k * 1.8)); camera.position.copy(camPos); camera.lookAt(camLook);

@@ -27,17 +27,7 @@ canvas{display:block;position:fixed;left:0;top:0;width:100vw;height:100vh;height
 #bdrift{right:calc(122px + var(--sr));bottom:calc(92px + var(--sb));width:64px;height:64px;font-size:11px;background:rgba(80,140,255,.2)}
 #bdrift.t1{background:rgba(60,140,255,.7)}#bdrift.t2{background:rgba(255,140,30,.8)}
 #meterbar2{width:70px;height:6px;background:#333;border-radius:3px;overflow:hidden}#bandfill{height:100%;width:0}
-body.tilt #bl,body.tilt #br{display:none}
-body.tilt #bbrake{left:calc(14px + var(--sl));right:auto;bottom:calc(16px + var(--sb));width:104px;height:104px;font-size:15px}
-body.tilt #bdrift{left:calc(24px + var(--sl));right:auto;bottom:calc(132px + var(--sb));width:84px;height:84px;font-size:14px}
-body.tilt #bgas{width:112px;height:112px;font-size:20px}
-body.tilt #bdash{right:calc(36px + var(--sr));bottom:calc(140px + var(--sb));width:70px;height:70px;font-size:11px}
-#recenter{display:none;top:calc(46px + var(--st));right:calc(6px + var(--sr));width:auto;height:auto;border-radius:6px;padding:3px 7px;font-size:10px}
-body.tilt #recenter{display:block}
-#sens{display:none;gap:6px;margin-top:6px;font-family:system-ui}#sens button{font-size:13px;padding:5px 12px;margin:0;background:#334;border-width:2px}#sens button.sel{background:#3a8}body.tilt.touchui #sens{display:flex}
-#steermode{margin-top:8px;display:none;gap:8px;font-family:system-ui}#steermode button{font-size:15px;padding:7px 16px;margin:0;background:#334;border-width:2px}#steermode button.sel{background:#3a8;}
-@media (max-height:430px){body.tilt #bbrake{width:92px;height:92px}body.tilt #bdrift{width:72px;height:72px;bottom:calc(116px + var(--sb))}body.tilt #bgas{width:96px;height:96px}body.tilt #bdash{width:60px;height:60px;bottom:calc(120px + var(--sb))}}
-@media (max-height:430px){.btn{width:62px;height:62px}#br{left:calc(88px + var(--sl))}#bgas{width:84px;height:84px}#bbrake{right:calc(108px + var(--sr));width:56px;height:56px}#bdash{bottom:calc(108px + var(--sb));width:54px;height:54px;right:calc(24px + var(--sr))}#bdrift{right:calc(108px + var(--sr));bottom:calc(80px + var(--sb));width:54px;height:54px}}
+@media (max-height:430px){@media (max-height:430px){.btn{width:62px;height:62px}#br{left:calc(88px + var(--sl))}#bgas{width:84px;height:84px}#bbrake{right:calc(108px + var(--sr));width:56px;height:56px}#bdash{bottom:calc(108px + var(--sb));width:54px;height:54px;right:calc(24px + var(--sr))}#bdrift{right:calc(108px + var(--sr));bottom:calc(80px + var(--sb));width:54px;height:54px}}
 #overlay{position:fixed;left:0;top:0;width:100%;height:100vh;height:100dvh;height:var(--vvh,100dvh);box-sizing:border-box;background:radial-gradient(#3a1a6a,#0a0520);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;z-index:5;padding:var(--st) var(--sr) var(--sb) var(--sl);overflow-y:auto;-webkit-overflow-scrolling:touch;touch-action:pan-y}
 #overlay h1{font-size:clamp(22px,7vh,40px);line-height:1.05;margin:0 0 4px;color:#ffd34d;text-shadow:3px 3px 0 #c03;font-style:italic;letter-spacing:2px}
 #overlay p{font-family:system-ui,sans-serif;max-width:600px;font-size:clamp(10px,3.6vh,14px);line-height:1.3;margin:3px 0}
@@ -46,9 +36,7 @@ body.tilt #recenter{display:block}
 #menu{display:flex;flex-direction:row;align-items:center;gap:18px;width:100%;max-width:980px;max-height:100%;box-sizing:border-box;padding:8px 14px}
 #menu .col-l{flex:1.4;min-width:0;max-height:calc(var(--vvh,100dvh) - 20px);overflow-y:auto;text-align:left}
 #menu .col-r{flex:1;min-width:200px;display:flex;flex-direction:column;align-items:center;gap:6px;position:sticky;bottom:0}
-#steermode,#sens{flex-wrap:wrap;justify-content:center}
-#steermode button,#sens button{font:inherit;font-family:system-ui;color:#fff;border:2px solid #fff;border-radius:9px;margin:0;cursor:pointer}
-@media (max-height:340px){#menu{gap:12px;padding:4px 10px}#steermode button{font-size:13px;padding:4px 10px}#sens button{font-size:12px;padding:3px 9px}#overlay p{line-height:1.22}}
+@media (max-height:340px){#menu{gap:12px;padding:4px 10px}#overlay p{line-height:1.22}}
 @media (max-width:620px) and (orientation:portrait){#menu{flex-direction:column}#menu .col-l{text-align:center;max-height:none}}
 #rot{display:none;position:fixed;inset:0;background:#000;z-index:9;align-items:center;justify-content:center;font-size:22px;text-align:center}
 </style></head><body>
@@ -58,16 +46,14 @@ body.tilt #recenter{display:block}
  <div id="speed" class="box"><span id="mph">0 MPH</span><span>DASH</span><div id="meterbar"><div id="meterfill"></div></div><span>BAND</span><div id="meterbar2" class="mb"><div id="bandfill"></div></div></div>
  <div id="msg"></div>
  <div id="bl" class="btn">◀</div><div id="br" class="btn">▶</div>
- <div id="bbrake" class="btn">BRAKE</div><div id="bgas" class="btn">GAS</div><div id="bdash" class="btn">SLIDE<br>DASH</div><div id="bdrift" class="btn">DRIFT</div><div id="recenter" class="btn">⟳ RECENTER</div>
+ <div id="bbrake" class="btn">BRAKE</div><div id="bgas" class="btn">GAS</div><div id="bdash" class="btn">SLIDE<br>DASH</div><div id="bdrift" class="btn">DRIFT</div>
 </div>
 <div id="overlay"><div id="menu">
  <div class="col-l"><h1>TURBO TEMPO<br>RACING</h1>
  <p><b>Brass City</b> · 3 laps · Trombone Coupe</p>
- <p><b>Tilt:</b> turn the phone like a steering wheel (or use ◀ ▶ buttons). Hold <b>GAS</b>; <b>BRAKE</b>. <b>Drift:</b> hold DRIFT (or brake while turning at speed) — sparks go <span style="color:#5af">blue</span> then <span style="color:#f90">orange</span>; let go to boost. Tap <b>FLIP</b> in the air off ramps and drum pads. Find Backbeat Alley; dodge stands, timpani and the giant metronome. Style fills the <b>Band Meter</b>. Keyboard: ↑ gas, ↓ brake, ←→ steer, Shift drift, Space dash.</p></div>
+ <p><b>Steer:</b> ◀ ▶ buttons. Hold <b>GAS</b>; <b>BRAKE</b>. <b>Drift:</b> hold DRIFT (or brake while turning at speed) — sparks go <span style="color:#5af">blue</span> then <span style="color:#f90">orange</span>; let go to boost. Tap <b>FLIP</b> in the air off ramps and drum pads. Find Backbeat Alley; dodge stands, timpani and the giant metronome. Style fills the <b>Band Meter</b>. Keyboard: ↑ gas, ↓ brake, ←→ steer, Shift drift, Space dash.</p></div>
  <div class="col-r">
- <div id="steermode"><span style="align-self:center;font-size:13px">Steering:</span><button id="smTilt">📱 TILT</button><button id="smBtn">◀ ▶ BUTTONS</button></div>
- <div id="sens" class="tiltonly"><span style="align-self:center;font-size:12px">Tilt sensitivity:</span><button data-s="low">Low</button><button data-s="med">Med</button><button data-s="high">High</button></div>
- <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype · © 2026 Backline Vintage</p></div>
+ <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v10 · © 2026 Backline Vintage</p></div>
 </div></div>
 <div id="rot">Turn your device sideways 🔄</div>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
