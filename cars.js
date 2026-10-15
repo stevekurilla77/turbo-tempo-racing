@@ -12,7 +12,7 @@ const std = (color, metalness, roughness, o = {}) => new THREE.MeshStandardMater
 const M = {
   brass: std(0xf2c24a, 1, .2, { emissive: 0x2a1a00 }), chrome: std(0xf2f4f8, 1, .12, { envMapIntensity: 1.4 }), silver: std(0xd6dce4, 1, .2),
   rubber: new THREE.MeshLambertMaterial({ color: 0x15151a }), tread: new THREE.MeshLambertMaterial({ color: 0x2a2a32 }),
-  glass: std(0x1a2a50, .8, .05, { transparent: true, opacity: .78 }), black: std(0x101014, .4, .12), pearl: std(0xfff6e8, .1, .3),
+  glass: std(0x9ab8e8, .6, .05, { transparent: true, opacity: .28, depthWrite: false }), black: std(0x101014, .4, .12), pearl: std(0xfff6e8, .1, .3),
   wood: std(0x8e4a20, .1, .35), stick: std(0xe6c48a, 0, .5), tail: new THREE.MeshBasicMaterial({ color: 0xff2a20 }), head: new THREE.MeshBasicMaterial({ color: 0xfff6d0 }),
 };
 M.brassDS = M.brass.clone(); M.brassDS.side = THREE.DoubleSide; M.blackDS = M.black.clone(); M.blackDS.side = THREE.DoubleSide; M.silverDS = M.silver.clone(); M.silverDS.side = THREE.DoubleSide;
@@ -47,10 +47,56 @@ function bake(st) {
     out.add(new THREE.Mesh(m, mat)); }
   return out;
 }
+// ---------- drivers: cartoon kids/teens in open-face helmets with goggles; faces, hair, varied skin tones ----------
+export const LOOKS = {
+  trombone: { girl: 1, skin: 0xc68a5e, hair: 0x5a3018, style: 'ponytail', tie: 0xff4fb0 },
+  trumpet: { girl: 0, skin: 0x6b4128, hair: 0x15100c, style: 'short' },
+  sax: { girl: 1, skin: 0xf6d2b8, hair: 0xf0c860, style: 'long' },
+  tuba: { girl: 0, skin: 0xf1c6a6, hair: 0xc8501e, style: 'curly' },
+  clarinet: { girl: 1, skin: 0xe8b88e, hair: 0x101018, style: 'pigtails', tie: 0x40e0ff },
+  snare: { girl: 0, skin: 0xd09a6e, hair: 0x4a2a14, style: 'short' },
+  horn: { girl: 1, skin: 0x8a5634, hair: 0x1c120c, style: 'puffs', tie: 0xffd040 },
+  xylo: { girl: 0, skin: 0xb07850, hair: 0x2a6cff, style: 'spiky' },
+};
+let curLook = LOOKS.trombone, curBeams = new THREE.Group();
+const matte = c => mc['m' + c] || (mc['m' + c] = std(c, 0, .65, { envMapIntensity: .3 }));
+const ds = m => m.userData.ds || (m.userData.ds = Object.assign(m.clone(), { side: THREE.DoubleSide }));
+const shellG = (a, b, c, d) => G(`sh${a},${b},${c},${d}`, () => new THREE.SphereGeometry(.26, 18, 12, a, b, c, d));
+function driver(st, x, y, z, helm, visor) {
+  const L = curLook, d = new THREE.Group(); d.position.set(x, y + .06, z); d.scale.setScalar(1.45); st.add(d);
+  const skin = matte(L.skin), hair = matte(L.hair), dark = basic(0x1a1010), white = basic(0xffffff);
+  P(d, cyl(.17, .24, .4, 12), helm, 0, -.36, -.04); P(d, cyl(.08, .08, .12, 10), skin, 0, -.17, 0); // suit + neck
+  P(d, sph(.21, 18, 14), skin, 0, 0, .035);                                                   // head
+  const H = ds(helm), front = PI / 2, gap = 1.1;                                            // open-face helmet: full cap + back/side shell
+  P(d, shellG(0, PI * 2, 0, PI * .3), H, 0, 0, 0); P(d, shellG(front + gap, PI * 2 - 2 * gap, PI * .3, PI * .27), H, 0, 0, 0);
+  P(d, tor(.255, .02, PI * 2, 6, 24), visor, 0, .12, 0, PI / 2 + .25);                    // goggle strap
+  for (const s of [-1, 1]) { P(d, cyl(.06, .06, .05, 14), visor, s * .075, .19, .19, PI / 2 - .5); P(d, tor(.06, .012, PI * 2, 6, 14), M.chrome, s * .075, .19, .2, -.5); }
+  // fringe under the helmet rim
+  P(d, G('fr', () => new THREE.SphereGeometry(.212, 16, 6, front - .9, 1.8, PI * .27, PI * .1)), hair, 0, 0, .01);
+  // face
+  for (const s of [-1, 1]) { P(d, sph(.034, 10, 8), dark, s * .074, .02, .218); P(d, sph(.012, 6, 4), white, s * .074 + .012, .035, .246);
+    if (L.girl) { P(d, box(.045, .012, .01), dark, s * .097, .06, .215, 0, 0, s * -.5); P(d, circ(.032), basic(0xff8aa0), s * .12, -.045, .2, 0, s * .55); } }
+  P(d, tor(.055, .013, PI, 6, 10), basic(0x7a1a2a), 0, -.07, .225, 0, 0, PI);                 // smile
+  // hair styles (visible below / out the back of the helmet)
+  const back = (px, py, pz, r) => P(d, sph(r, 10, 8), hair, px, py, pz);
+  if (L.style === 'ponytail') { back(0, .13, -.33, .1); back(0, .1, -.45, .09); back(0, .05, -.56, .08); back(0, -.02, -.65, .065); P(d, tor(.08, .025, PI * 2, 6, 12), basic(L.tie), 0, .13, -.35); }
+  else if (L.style === 'long') { P(d, box(.4, .5, .08), hair, 0, -.08, -.43, 1.0); P(d, sph(.2, 12, 8), hair, 0, -.08, -.16, 0, 0, 0, 1, .7, 1); for (const s of [-1, 1]) P(d, box(.07, .34, .12), hair, s * .21, -.14, -.02); }
+  else if (L.style === 'pigtails') { for (const s of [-1, 1]) { back(s * .3, .0, -.12, .085); back(s * .4, -.04, -.17, .075); back(s * .48, -.1, -.22, .065); P(d, tor(.07, .022, PI * 2, 6, 12), basic(L.tie), s * .28, .02, -.12, 0, PI / 2); } }
+  else if (L.style === 'puffs') { for (const s of [-1, 1]) back(s * .22, .12, -.16, .12); back(0, -.12, -.22, .12); P(d, tor(.1, .02, PI * 2, 6, 12), basic(L.tie), 0, -.06, -.2, .3); }
+  else if (L.style === 'curly') { for (let k = 0; k < 7; k++) { const a = PI * (.15 + k * .7 / 6); back(Math.cos(a) * .24, -.13, -Math.sin(a) * .23, .065); } }
+  else if (L.style === 'spiky') { for (let k = -2; k <= 2; k++) P(d, cyl(0, .04, .14, 6), hair, k * .06, .1, .24, PI / 2 - .6, 0, k * -.15); for (const s of [-1, 1]) P(d, box(.05, .12, .12), hair, s * .2, -.06, -.04); }
+  else { for (const s of [-1, 1]) P(d, box(.05, .1, .14), hair, s * .2, -.06, -.04); P(d, box(.32, .1, .08), hair, 0, -.14, -.22); } // short
+}
+// headlights: bright lamp + additive halo + soft beam on the road ahead
+const haloM = new THREE.MeshBasicMaterial({ color: 0xfff2b0, transparent: true, opacity: .6, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+const beamM = new THREE.MeshBasicMaterial({ color: 0xfff0c0, transparent: true, opacity: .13, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+const beamG = G('beam', () => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute([-.25, 0, 0, .25, 0, 0, 1.1, 0, 5, -.25, 0, 0, 1.1, 0, 5, -1.1, 0, 5], 3)); g.computeVertexNormals(); return g; });
+function headlights(st, x, y, z, w = .42, h = .1) {
+  for (const s of [-1, 1]) { P(st, box(w, h, .05), M.head, s * x, y, z); P(st, circ(.26), haloM, s * x, y, z + .05, 0, 0, 0, w / .3, h / .1 * .7, 1); P(curBeams, beamG, beamM, s * x, .06, z + .1); }
+}
 // side-profile wedge body, extruded across the width
 function chassis(st, prof, w, mat, bev = .12) { const s = new THREE.Shape(); prof.forEach(([z, y], i) => i ? s.lineTo(z, y) : s.moveTo(z, y));
   const g = new THREE.ExtrudeGeometry(s, { depth: w, bevelEnabled: true, bevelThickness: bev, bevelSize: bev * .8, bevelSegments: 2, curveSegments: 4 }); g.rotateY(-PI / 2); g.translate(w / 2, 0, 0); st.add(new THREE.Mesh(g, mat)); }
-function driver(st, x, y, z, helm, visor) { P(st, sph(.3, 14, 10), helm, x, y, z); P(st, box(.44, .13, .12), visor, x, y + .03, z + .24); P(st, box(.06, .3, .5), helm, x, y + .2, z - .05, 0, 0, 0); }
 function canopy(st, z, y, sx = .72, sy = .5, sz = 1.2) { P(st, dome(), M.glass, 0, y, z, 0, 0, 0, sx, sy, sz); }
 // a bell; dir 'back' (-z), 'fwd' (+z) or tilt angle for up. returns mouth center
 function bell(st, mat, x, y, z, s, sl, rx) { P(st, bellG, mat, x, y, z, rx, 0, 0, s, sl, s); const L = 6 * sl; return [x, y + Math.cos(rx) * L, z + Math.sin(rx) * L]; }
@@ -77,8 +123,8 @@ function wheels(g, U, o) {
     const side = baked.clone(); side.rotation.y = sx < 0 ? PI : 0; spin.add(side); U.wheels.push(spin); if (z > 0) U.front.push(steer);
   }
 }
-const lights = (st, zt, yt, xt, zh, yh, xh) => { for (const s of [-1, 1]) { P(st, box(.45, .13, .05), M.tail, s * xt, yt, zt); P(st, box(.42, .1, .05), M.head, s * xh, yh, zh); } };
-function finish(g, st, U, shadow) { g.add(bake(st)); g.userData.anim = U; return { g, shadow }; }
+const lights = (st, zt, yt, xt, zh, yh, xh) => { for (const s of [-1, 1]) { P(st, box(.45, .13, .05), M.tail, s * xt, yt, zt); } headlights(st, xh, yh, zh); };
+function finish(g, st, U, shadow) { g.add(bake(st)); if (curBeams.children.length) { U.beam = bake(curBeams); g.add(U.beam); } curBeams = new THREE.Group(); g.userData.anim = U; return { g, shadow }; }
 const newU = () => ({ wheels: [], front: [], glows: [], r: .55, tick: null });
 
 // ================= the cars =================
@@ -126,7 +172,7 @@ const BUILD = {
     const g = new THREE.Group(), st = new THREE.Group(), U = newU(), pur = paint(0x5b2a9e);
     chassis(st, [[-2.3, .32], [-2.3, .8], [-1.3, .92], [-.5, 1.02], [.8, .86], [1.9, .62], [2.5, .44], [2.55, .32]], 1.85, pur);
     P(st, box(2.15, .22, 3.95), M.rubber, 0, .3, 0);
-    canopy(st, -.2, .98, .68, .48, 1.2); driver(st, -.05, 1.2, -.3, paint(0xffd23a), basic(0xff40c0));
+    canopy(st, -.2, .98, .68, .48, 1.2); driver(st, -.05, 1.2, -.3, paint(0xffffff), basic(0xff40c0));
     st.add(new THREE.Mesh(tube([[0, 1.0, 2.25], [.25, 1.28, 1.8], [.6, 1.25, 1.25], [.82, 1.12, .6]], .07, 16), M.brass));
     st.add(new THREE.Mesh(tube([[.82, 1.12, .6], [.84, 1.08, -.4], [.84, 1.0, -1.4], [.84, .78, -2.0], [.84, .7, -2.3], [.84, .82, -2.55], [.84, 1.02, -2.6]], .15, 30), M.brass));
     P(st, cyl(.06, .14, .45, 12), M.black, 0, .95, 2.42, PI / 2 + .3); P(st, tor(.1, .03, PI * 2, 6, 12), M.silver, 0, .99, 2.3, .3); // mouthpiece + ligature
@@ -144,9 +190,9 @@ const BUILD = {
     chassis(st, [[-2.35, .55], [-2.4, 1.2], [-1.4, 1.28], [1.3, 1.24], [2.2, 1.02], [2.55, .72], [2.55, .55]], 2.1, blu);
     P(st, box(2.3, .3, 4.3), M.rubber, 0, .55, 0);
     for (const x of [-.8, .8]) P(st, cyl(.06, .06, .7, 8), M.chrome, x, .9, 2.75); alongX(st, .07, 1.8, M.chrome, 0, 1.2, 2.75); alongX(st, .07, 1.8, M.chrome, 0, .7, 2.78);
-    P(st, box(1.7, .5, .06), M.glass, 0, 1.6, .95, -.35); driver(st, 0, 1.68, .2, paint(0xff8a20), basic(0x40e0ff)); P(st, box(.9, .25, .7), M.black, 0, 1.38, .1);
-    P(st, tor(1.02, .17, PI * 2, 8, 28), M.brass, 0, 1.78, .1, PI / 2 - .35);
-    st.add(new THREE.Mesh(tube([[0, 2.12, -.86], [0, 2.45, -1.25], [0, 2.62, -1.65]], .2, 10), M.brass));
+    P(st, box(1.7, .5, .06), M.glass, 0, 1.6, .95, -.35); driver(st, 0, 1.82, .3, paint(0xff8a20), basic(0x40e0ff)); P(st, box(.9, .25, .7), M.black, 0, 1.38, .1);
+    P(st, tor(1.02, .17, PI * 2, 8, 28), M.brass, 0, 1.5, .1, PI / 2 - .2);
+    st.add(new THREE.Mesh(tube([[0, 1.32, -.98], [0, 1.95, -1.3], [0, 2.62, -1.65]], .2, 12), M.brass));
     glowDisc(g, U, 0x40e0ff, .62, bell(st, M.brassDS, 0, 2.62, -1.65, .27, .2, PI / 2).map((v, i) => i === 2 ? v - .25 : v));
     [-.25, -.5, -.75].forEach(z => { P(st, cyl(.11, .11, .55, 12), M.brass, .95, 1.6, z); P(st, cyl(.08, .08, .06, 12), M.pearl, .95, 1.92, z); });
     for (const x of [-.85, .85]) { P(st, cyl(.11, .11, 1.1, 12), M.chrome, x, 1.75, -2.1); P(st, cyl(.13, .13, .14, 12), M.black, x, 2.33, -2.1); }
@@ -169,7 +215,7 @@ const BUILD = {
       for (const z of [1.5, -1.4]) { alongX(st, .035, .9, M.silver, s * .85, .62, z, 6); alongX(st, .035, .9, M.silver, s * .85, .82, z - .1, 6); } }
     P(st, box(2.9, .06, .45), M.silver, 0, .3, 2.35); for (const s of [-1, 1]) P(st, box(.05, .3, .55), M.black, s * 1.45, .4, 2.35); alongZ(st, .04, .04, .5, M.silver, 0, .5, 2.3, 6);
     P(st, box(2.2, .08, .5), M.black, 0, 1.7, -1.9, -.1); for (const s of [-1, 1]) { P(st, box(.05, .45, .65), M.silver, s * 1.1, 1.6, -1.9); P(st, box(.07, .6, .1), M.silver, s * .35, 1.35, -1.9); }
-    for (const s of [-1, 1]) { P(st, box(.3, .1, .05), M.tail, s * .5, .6, -1.25); P(st, box(.25, .08, .04), M.head, s * .3, .7, 2.38); }
+    for (const s of [-1, 1]) { P(st, box(.3, .1, .05), M.tail, s * .5, .6, -1.25); } headlights(st, .3, .62, 2.6, .25, .08);
     wheels(g, U, { r: .52, w: .42, x: 1.35, zf: 1.5, zr: -1.4, spokes: 10, spokeW: .035, spokeMat: M.silver, rimMat: M.black, lip: M.silver, hub: basic(0x9ff4ff) });
     return finish(g, st, U, [1.6, 2.9]);
   },
@@ -185,7 +231,7 @@ const BUILD = {
     for (let k = 0; k < 8; k++) { const a = k * PI / 4; P(st, box(.09, .22, .1), M.chrome, Math.cos(a) * .84, .85, -1.3 + Math.sin(a) * .84, 0, -a); }
     P(st, box(.06, .14, .2), M.chrome, .86, .85, -1.3);
     alongX(st, .06, 2.1, M.chrome, 0, .45, -2.1, 8); alongX(st, .06, 1.9, M.chrome, 0, .45, 2.5, 8);
-    for (const s of [-1, 1]) P(st, box(.3, .12, .05), M.tail, s * .55, .55, -2.0);
+    for (const s of [-1, 1]) P(st, box(.3, .12, .05), M.tail, s * .55, .55, -2.0); headlights(st, .38, .5, 2.42, .3, .1);
     const sticks = [-1, 1].map(s => { const p = new THREE.Group(); p.position.set(s * .32, 1.32, -.55); g.add(p); const ps = new THREE.Group();
       P(ps, cyl(.025, .04, 1.0, 8), M.stick, 0, 0, -.5, PI / 2 + .1); P(ps, sph(.055, 8, 6), M.stick, 0, -.05, -1.0); p.add(bake(ps)); return p; });
     wheels(g, U, { r: .46, w: .46, x: 1.18, zf: 1.45, zr: -1.4, rim: 'drum', hub: basic(0xff3040) });
@@ -230,5 +276,5 @@ const BUILD = {
     return finish(g, st, U, [1.55, 2.8]);
   },
 };
-export function buildCar(type) { return BUILD[type](); }
+export function buildCar(type) { curLook = LOOKS[type] || LOOKS.trombone; return BUILD[type](); }
 export const CAR_TYPES = Object.keys(BUILD);
