@@ -234,15 +234,80 @@ function schedMusic() {
 }
 function sfx(f, dur = .35, vol = .25) { if (AC) window.__tt.sfx = (window.__tt.sfx || 0) + 1; if (AC) brass(f, AC.currentTime, dur, vol, master, 4000); }
 
+// ---------- Trombone Super Racer (player car): low-slung brass supercar built from primitives ----------
+const carEnv = (() => { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d');
+  const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#3a1a6a'); gr.addColorStop(.3, '#c08a3a'); gr.addColorStop(.46, '#fff4d0'); gr.addColorStop(.54, '#6a5030'); gr.addColorStop(1, '#141018');
+  g.fillStyle = gr; g.fillRect(0, 0, 256, 128); g.fillStyle = 'rgba(255,240,200,.9)'; for (let x = 8; x < 256; x += 22) g.fillRect(x, 38 + (x % 3) * 4, 8, 22); // bright "windows" for sparkle
+  const t = new THREE.CanvasTexture(c); t.mapping = THREE.EquirectangularReflectionMapping; t.colorSpace = THREE.SRGBColorSpace; return t; })();
+const tbBrass = new THREE.MeshStandardMaterial({ color: 0xf2c24a, metalness: 1, roughness: .2, envMap: carEnv, envMapIntensity: 1.1, emissive: 0x2a1a00 });
+const tbBrassDS = tbBrass.clone(); tbBrassDS.side = THREE.DoubleSide;
+const tbChrome = new THREE.MeshStandardMaterial({ color: 0xf2f4f8, metalness: 1, roughness: .12, envMap: carEnv, envMapIntensity: 1.4 });
+const tbRubber = new THREE.MeshLambertMaterial({ color: 0x15151a });
+const tbTread = new THREE.MeshLambertMaterial({ color: 0x26262e });
+const tbGlass = new THREE.MeshStandardMaterial({ color: 0x1a2a50, metalness: .8, roughness: .05, envMap: carEnv, transparent: true, opacity: .78 });
+const tbRed = new THREE.MeshStandardMaterial({ color: 0xb01828, metalness: .5, roughness: .3, envMap: carEnv });
+const tbTyreGeo = new THREE.CylinderGeometry(.56, .56, .52, 20), tbSideGeo = new THREE.TorusGeometry(.48, .09, 6, 20);
+const tbSpokeGeo = new THREE.BoxGeometry(.06, .7, .1), tbRimGeo = new THREE.CylinderGeometry(.42, .42, .05, 20), tbHubGeo = new THREE.CylinderGeometry(.13, .13, .08, 12);
+function tromboneMesh() {
+  const g = new THREE.Group(), U = { wheels: [], front: [], slide: null, glow: null, hubs: [] };
+  // wedge body: side profile (z forward, y up) extruded across the width
+  const s = new THREE.Shape(); [[-2.25, .32], [-2.3, .92], [-1.55, 1.02], [-.9, 1.08], [.9, .92], [1.9, .66], [2.45, .48], [2.5, .32]].forEach(([z, y], i) => i ? s.lineTo(z, y) : s.moveTo(z, y));
+  const bg = new THREE.ExtrudeGeometry(s, { depth: 1.9, bevelEnabled: true, bevelThickness: .12, bevelSize: .1, bevelSegments: 2, curveSegments: 4 });
+  bg.rotateY(-Math.PI / 2); bg.translate(.95, 0, 0); const body = new THREE.Mesh(bg, tbBrass); g.add(body);
+  const stripe = new THREE.Mesh(new THREE.BoxGeometry(.32, .04, 3.4), tbRed); stripe.position.set(0, 1.0, .35); stripe.rotation.x = .14; g.add(stripe); // racing stripe
+  const skirt = new THREE.Mesh(new THREE.BoxGeometry(2.25, .22, 3.9), tbRubber); skirt.position.set(0, .3, .1); g.add(skirt);
+  // cockpit canopy + gender-neutral helmeted driver
+  const can = new THREE.Mesh(new THREE.SphereGeometry(1, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2), tbGlass); can.scale.set(.72, .5, 1.25); can.position.set(0, 1.0, -.35); g.add(can);
+  const helm = new THREE.Mesh(new THREE.SphereGeometry(.3, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: .3 })); helm.position.set(0, 1.25, -.45); g.add(helm);
+  const visor = new THREE.Mesh(new THREE.BoxGeometry(.42, .12, .1), new THREE.MeshBasicMaterial({ color: 0xffb020 })); visor.position.set(0, 1.28, -.2); g.add(visor);
+  // the slide: two long tubes along the shoulders joined by a U-bend that pokes out the front (extends on boost)
+  const slide = new THREE.Group(); g.add(slide); U.slide = slide;
+  for (const x of [-.82, .82]) {
+    const outer = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, 2.6, 10), tbBrass); outer.rotation.x = Math.PI / 2; outer.position.set(x, 1.12, -.4); g.add(outer); // fixed sleeve
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(.15, .04, 6, 12), tbChrome); ring.position.set(x, 1.12, .9); g.add(ring);
+    const inner = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, 2.2, 10), tbChrome); inner.rotation.x = Math.PI / 2; inner.position.set(x, 1.12, 1.4); slide.add(inner);
+  }
+  const ub = new THREE.Mesh(new THREE.TorusGeometry(.82, .1, 8, 20, Math.PI), tbBrass); ub.rotation.x = Math.PI / 2; ub.position.set(0, 1.12, 2.5); slide.add(ub);
+  const bump = new THREE.Mesh(new THREE.SphereGeometry(.14, 10, 8), tbChrome); bump.position.set(0, 1.12, 3.32); slide.add(bump); // slide bumper knob
+  // mouthpiece hood ornament
+  const mp = new THREE.Mesh(new THREE.LatheGeometry([[0, 0], [.05, 0], [.05, .35], [.09, .45], [.17, .55], [.16, .6], [.08, .58]].map(([a, b]) => new THREE.Vector2(a, b)), 14), tbChrome);
+  mp.rotation.x = Math.PI / 2; mp.position.set(0, .9, 1.3); g.add(mp);
+  // bell section: tuning-slide loop on the rear deck + big flared bell as the exhaust
+  const tl = new THREE.Mesh(new THREE.TorusGeometry(.45, .08, 6, 16, Math.PI), tbBrass); tl.rotation.z = Math.PI / 2; tl.rotation.y = Math.PI / 2; tl.position.set(0, 1.1, -1.6); g.add(tl);
+  const neck = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, .7, 10), tbBrass); neck.rotation.x = Math.PI / 2; neck.position.set(0, .7, -2.2); g.add(neck);
+  const bell = new THREE.Mesh(bellGeo, tbBrassDS); bell.scale.set(.22, .18, .22); bell.rotation.x = -Math.PI / 2; bell.position.set(0, .7, -2.35); g.add(bell);
+  const glow = new THREE.Mesh(new THREE.CircleGeometry(.5, 16), new THREE.MeshBasicMaterial({ color: 0xff8a20, transparent: true, opacity: .35, side: THREE.DoubleSide })); glow.position.set(0, .7, -3.1); g.add(glow); U.glow = glow;
+  // rear wing + tail lights
+  const wing = new THREE.Mesh(new THREE.BoxGeometry(2.4, .08, .55), tbBrass); wing.position.set(0, 1.62, -2.0); wing.rotation.x = -.12; g.add(wing);
+  for (const x of [-1.2, 1.2]) { const fin = new THREE.Mesh(new THREE.BoxGeometry(.06, .4, .7), tbRed); fin.position.set(x, 1.55, -2.0); g.add(fin); }
+  for (const x of [-.55, .55]) { const st = new THREE.Mesh(new THREE.BoxGeometry(.08, .62, .14), tbChrome); st.position.set(x, 1.3, -2.0); g.add(st); }
+  for (const x of [-.75, .75]) { const tl2 = new THREE.Mesh(new THREE.BoxGeometry(.5, .14, .05), new THREE.MeshBasicMaterial({ color: 0xff2a20 })); tl2.position.set(x, .78, -2.4); g.add(tl2); }
+  for (const x of [-.7, .7]) { const hl = new THREE.Mesh(new THREE.BoxGeometry(.45, .1, .05), new THREE.MeshBasicMaterial({ color: 0xfff6d0 })); hl.position.set(x, .52, 2.62); g.add(hl); }
+  // chunky sport tyres with chrome 6-spoke rims and glowing gold hubs
+  const hubMat = new THREE.MeshBasicMaterial({ color: 0xffd040 });
+  for (const [x, z] of [[-1.2, 1.5], [1.2, 1.5], [-1.2, -1.45], [1.2, -1.45]]) {
+    const steer = new THREE.Group(); steer.position.set(x, .56, z); g.add(steer); const spin = new THREE.Group(); steer.add(spin);
+    const ty = new THREE.Mesh(tbTyreGeo, tbRubber); ty.rotation.z = Math.PI / 2; spin.add(ty);
+    const o = Math.sign(x) * .27;
+    const sw = new THREE.Mesh(tbSideGeo, tbTread); sw.rotation.y = Math.PI / 2; sw.position.x = o; spin.add(sw);
+    const rim = new THREE.Mesh(tbRimGeo, tbChrome); rim.rotation.z = Math.PI / 2; rim.position.x = o; spin.add(rim);
+    for (let k = 0; k < 6; k++) { const sp = new THREE.Mesh(tbSpokeGeo, tbBrass); sp.rotation.x = k * Math.PI / 3; sp.position.x = o + Math.sign(x) * .03; spin.add(sp); }
+    const hub = new THREE.Mesh(tbHubGeo, hubMat); hub.rotation.z = Math.PI / 2; hub.position.x = o + Math.sign(x) * .06; spin.add(hub);
+    U.wheels.push(spin); if (z > 0) U.front.push(steer);
+  }
+  g.userData.tb = U; return g;
+}
+window.__tt = Object.assign(window.__tt || {}, { tromboneMesh });
 // ---------- cars ----------
 const CARS = {
-  trombone: { name: 'Trombone Coupe', color: 0xd9353a, top: 43, accel: 17, turn: 1.9, tough: .5, move: 'Slide Dash' },
+  trombone: { name: 'Trombone Super Racer', color: 0xf0c050, top: 43, accel: 17, turn: 1.9, tough: .5, move: 'Slide Dash' },
   tuba: { name: 'Tuba Truck', color: 0x2f6fd8, top: 40, accel: 10, turn: 1.45, tough: .92, move: 'Bass Blast' },
   piccolo: { name: 'Piccolo Racer', color: 0xf2f2f2, top: 47.5, accel: 16, turn: 1.8, tough: .18, move: 'High Trill' },
   snare: { name: 'Snare Kart', color: 0x38b04a, top: 41.4, accel: 19, turn: 2.6, tough: .3, move: 'Drum Roll' },
   horn: { name: 'French Horn Cruiser', color: 0x8a3fd0, top: 41.8, accel: 14.5, turn: 2.2, tough: .5, move: 'Horn Call' },
 };
 function carMesh(type) {
+  if (type === 'trombone') { const g = tromboneMesh(); const shadow = new THREE.Mesh(new THREE.CircleGeometry(1, 16), new THREE.MeshBasicMaterial({ color: 0, transparent: true, opacity: .35 })); shadow.rotation.x = -Math.PI / 2; shadow.scale.set(1.6, 2.8, 1); shadow.position.y = .03; scene.add(shadow); g.userData.shadow = shadow; scene.add(g); return g; }
   const c = CARS[type], g = new THREE.Group();
   const paint = new THREE.MeshStandardMaterial({ color: c.color, metalness: .4, roughness: .35 });
   const dark = new THREE.MeshLambertMaterial({ color: 0x1a1a22 }), glass = new THREE.MeshStandardMaterial({ color: 0x223355, metalness: .6, roughness: .1 });
@@ -252,11 +317,7 @@ function carMesh(type) {
   const cab = new THREE.Mesh(new THREE.BoxGeometry(1.7 * sc, .7, 1.8), glass); cab.position.set(0, 1.45, type === 'tuba' ? 1 : -.2); g.add(cab);
   for (const [x, z] of [[-1.15, 1.4], [1.15, 1.4], [-1.15, -1.4], [1.15, -1.4]]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.5, .5, .45, 14), dark); w.rotation.z = Math.PI / 2; w.position.set(x * sc, .5, z); g.add(w); }
   const tail = new THREE.Mesh(new THREE.BoxGeometry(2 * sc, .25, .2), new THREE.MeshBasicMaterial({ color: 0xff3020 })); tail.position.set(0, .9, -2.21); g.add(tail);
-  if (type === 'trombone') { // slide tubes over the roof + bell at the back
-    for (const x of [-.45, .45]) { const t = new THREE.Mesh(new THREE.CylinderGeometry(.09, .09, 4.6, 8), brassMat); t.rotation.x = Math.PI / 2; t.position.set(x, 2, .2); g.add(t); }
-    const u = new THREE.Mesh(new THREE.TorusGeometry(.45, .09, 8, 16, Math.PI), brassMat); u.position.set(0, 2, 2.5); u.rotation.x = Math.PI / 2; g.add(u);
-    const b = new THREE.Mesh(bellGeo, brassMat); b.scale.set(.18, .14, .18); b.rotation.x = -Math.PI / 2; b.position.set(.45, 2, -1.8); g.add(b);
-  } else if (type === 'tuba') { const b = new THREE.Mesh(bellGeo, brassMat); b.scale.set(.3, .25, .3); b.position.set(0, 1.1, -1.2); g.add(b); const coil = new THREE.Mesh(new THREE.TorusGeometry(.7, .2, 8, 20), brassMat); coil.position.set(0, 1.6, -.4); g.add(coil); }
+  if (type === 'tuba') { const b = new THREE.Mesh(bellGeo, brassMat); b.scale.set(.3, .25, .3); b.position.set(0, 1.1, -1.2); g.add(b); const coil = new THREE.Mesh(new THREE.TorusGeometry(.7, .2, 8, 20), brassMat); coil.position.set(0, 1.6, -.4); g.add(coil); }
   else if (type === 'piccolo') { const fl = new THREE.Mesh(new THREE.CylinderGeometry(.12, .12, 5.4, 10), silverMat); fl.rotation.x = Math.PI / 2; fl.position.set(0, 1.3, .4); g.add(fl); for (let k = 0; k < 5; k++) { const key = new THREE.Mesh(new THREE.CylinderGeometry(.13, .13, .08, 8), silverMat); key.position.set(0, 1.44, -1 + k * .7); g.add(key); } }
   else if (type === 'snare') { const d = new THREE.Mesh(new THREE.CylinderGeometry(.9, .9, .6, 20), new THREE.MeshLambertMaterial({ color: 0xf5f5f5 })); d.position.set(0, 1.5, -1.3); g.add(d); const rim = new THREE.Mesh(new THREE.TorusGeometry(.9, .08, 6, 20), new THREE.MeshLambertMaterial({ color: 0xc02020 })); rim.rotation.x = Math.PI / 2; rim.position.set(0, 1.8, -1.3); g.add(rim); }
   else if (type === 'horn') { const coil = new THREE.Mesh(new THREE.TorusGeometry(.75, .12, 8, 24), brassMat); coil.position.set(0, 1.9, -1.1); g.add(coil); const b = new THREE.Mesh(bellGeo, brassMat); b.scale.set(.18, .14, .18); b.rotation.x = -Math.PI / 2; b.position.set(.7, 1.9, -1.7); g.add(b); }
@@ -702,6 +763,10 @@ function syncMeshes() {
     if (c.onRamp) pitch -= Math.atan(RAMP_H / (RAMP_LEN * SEG));
     if (c.air) pitch += -Math.atan(c.vy / Math.max(10, c.v)) * .5 + (c.trick >= 0 ? c.trick * Math.PI * 2 : 0);
     c.mesh.rotation.x = pitch; c.mesh.rotation.z = c.drift ? -c.drift * .12 : -c.steer * .06 * Math.min(1, c.v / 40);
+    const tb = c.mesh.userData.tb; if (tb) { // wheel spin, front-wheel steer, slide extension + bell glow on boost
+      const sp = c.v * camDt / .56; for (const w of tb.wheels) w.rotation.x += sp; for (const f of tb.front) f.rotation.y = c.steer * .4;
+      const pow = c.dash > 0 ? 1 : c.boost > 0 ? .75 : 0; tb.slide.position.z += (pow * .8 - tb.slide.position.z) * Math.min(1, camDt * 10);
+      tb.glow.material.opacity = .3 + pow * .65; tb.glow.scale.setScalar(1 + pow * .25); }
     const sh = c.mesh.userData.shadow; sh.position.set(c.x, gy + .05 + (c.onRamp ? c.y : 0), c.z); sh.rotation.z = -c.h; sh.material.opacity = .35 / (1 + c.y * .25);
   }
   const f = tmp.set(Math.sin(player.vh * .5 + player.h * .5), 0, Math.cos(player.vh * .5 + player.h * .5));
@@ -710,6 +775,7 @@ function syncMeshes() {
   const look = new THREE.Vector3(player.x, py + 1.6, player.z).addScaledVector(f, 7);
   if (!camInit) { camPos.copy(want); camLook.copy(look); camInit = true; }
   const k = 1 - Math.exp(-camDt * 9); camPos.lerp(want, k); camLook.lerp(look, Math.min(1, k * 1.8)); camera.position.copy(camPos); camera.lookAt(camLook);
+  { const o = window.__tt.camOverride; if (o) { camera.position.set(player.x + o[0], player.mesh.position.y + o[1], player.z + o[2]); camera.lookAt(player.x, player.mesh.position.y + .9, player.z); } } // test/screenshot hook only
   camera.fov = 66 + Math.min(14, player.v * .12) + (player.dash > 0 ? 6 : 0) + (player.boost > 0 ? 3 : 0); camera.updateProjectionMatrix();
 }
 function hud() {
