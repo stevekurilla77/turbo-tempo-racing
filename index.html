@@ -19,6 +19,17 @@ canvas{display:block;position:fixed;left:0;top:0;width:100vw;height:100vh;height
 #mmap{position:absolute;right:auto;display:block;top:calc(6px + var(--st));left:calc(6px + var(--sl));width:var(--mmw);height:var(--mmw);box-sizing:border-box;background:rgba(10,10,40,.45);border:1px solid rgba(255,211,77,.7);border-radius:10px}
 @media (max-height:600px){:root{--mmw:128px}}
 @media (max-height:430px){:root{--mmw:104px}}
+#finallap{display:none;position:absolute;top:13%;left:0;right:0;text-align:center;pointer-events:none;z-index:3}
+#finallap .fl{display:inline-block;font:italic 900 clamp(40px,9.5vw,118px)/1 'Arial Black',Impact,sans-serif;letter-spacing:.02em;transform:skewX(-10deg);
+ background:linear-gradient(180deg,#fff 0%,#fff6a0 30%,#ffb000 55%,#ff3d00 100%);-webkit-background-clip:text;background-clip:text;color:transparent;
+ -webkit-text-stroke:3px #2a0033;filter:drop-shadow(4px 4px 0 #2a0033) drop-shadow(0 0 12px rgba(255,80,200,.9))}
+#finallap .flag{display:inline-block;width:clamp(30px,6vw,70px);vertical-align:middle;margin:0 .25em;transform:translateY(-.1em)}
+#finallap.go{animation:flIn .35s cubic-bezier(.2,1.6,.4,1) both,flBlink .22s steps(1) .35s 6,flOut .3s ease-in 1.8s forwards}
+@keyframes flIn{from{transform:scale(2.6);opacity:0}to{transform:scale(1);opacity:1}}
+@keyframes flBlink{50%{opacity:.15}}
+@keyframes flOut{to{transform:translateY(-40px) scale(.8);opacity:0}}
+#lap.flashlap{animation:lapFlash .25s steps(1) infinite;color:#2a0033}
+@keyframes lapFlash{0%{background:#fff;border-color:#fff}50%{background:#ffd34d;border-color:#ff3d00}}
 #msg{position:absolute;top:30%;width:100%;text-align:center;font-size:44px;color:#ffd34d;text-shadow:3px 3px 0 #a20,0 0 10px #000}
 .btn{position:absolute;pointer-events:auto;touch-action:none;width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.55);font-size:24px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px}
 .btn.on{background:rgba(255,211,77,.5)}
@@ -70,6 +81,7 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
  <canvas id="mmap"></canvas>
  <div id="speed" class="box"><span id="mph">0 MPH</span><span>SPECIAL</span><div id="meterbar"><div id="meterfill"></div></div><span>BAND</span><div id="meterbar2" class="mb"><div id="bandfill"></div></div></div>
  <div id="msg"></div>
+ <div id="finallap"><svg class="flag" viewBox="0 0 40 40"><rect x="4" y="2" width="3" height="37" rx="1.5" fill="#c9a24a" stroke="#2a0033" stroke-width="1"/><path d="M7 4 C15 0 22 9 36 4 L36 22 C22 27 15 18 7 22 Z" fill="#fff" stroke="#2a0033" stroke-width="2"/></svg><span class="fl">FINAL LAP!</span><svg class="flag" viewBox="0 0 40 40"><rect x="4" y="2" width="3" height="37" rx="1.5" fill="#c9a24a" stroke="#2a0033" stroke-width="1"/><path d="M7 4 C15 0 22 9 36 4 L36 22 C22 27 15 18 7 22 Z" fill="#fff" stroke="#2a0033" stroke-width="2"/></svg></div>
  <div id="keys">↑ gas · ↓ brake · ← → steer · Shift drift · Space special / flip</div>
  <div id="bl" class="btn">◀</div><div id="br" class="btn">▶</div>
  <div id="bbrake" class="btn">BRAKE</div><div id="bgas" class="btn">GAS</div><div id="bdash" class="btn">SLIDE<br>DASH</div><div id="bdrift" class="btn">DRIFT</div>
@@ -79,7 +91,7 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
  <p><b>Brass City</b> · 3 laps · 8 instrument cars</p>
  <p><span class="touchonly"><b>Steer</b> with ◀ ▶ and hold <b>GAS</b>. Flips and your car's special move fire automatically when the meter fills.</span><span class="kbdonly"><b>Keyboard:</b> ↑ gas, ↓ brake, ← → steer, <b>Shift</b> drift (sparks go <span style="color:#5af">blue</span> then <span style="color:#f90">orange</span>; let go to boost), <b>Space</b> special move / flip in the air.</span> Find Backbeat Alley; dodge stands, timpani and the giant metronome. Style fills the <b>Band Meter</b>.</p></div>
  <div class="col-r">
- <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v16 · © 2026 Backline Vintage</p></div>
+ <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v17 · © 2026 Backline Vintage</p></div>
 </div></div>
 <div id="garage"><div id="gtitle">CHOOSE YOUR RIDE</div>
  <button id="gprev" class="garr">◀</button><button id="gnext" class="garr">▶</button>

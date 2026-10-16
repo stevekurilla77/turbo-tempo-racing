@@ -282,7 +282,7 @@ function gridUp() {
     Object.assign(c, { idx: i, x: P[i].x + S[i].x * side, z: P[i].z + S[i].z * side, h: Math.atan2(T[i].x, T[i].z), v: 0, lap: -1, maxIdx: N,
       boost: 0, dash: 0, meter: 0, finished: false, finishTime: 0, hitT: 9, lat: side, steer: 0,
       y: 0, vy: 0, air: false, onRamp: false, trick: -1, drift: 0, driftT: 0, tier: 0, px: 0, pz: 0, grip: 0, moveCD: rand(6, 10),
-      blockT: 0, bumpT: 0, alley: false, useAlley: false, wallT: 9 });
+      blockT: 0, bumpT: 0, alley: false, useAlley: false, wallT: 9, warpT: 0, warp: false, onWarp: null });
     c.vh = c.h;
   });
 }
@@ -318,7 +318,27 @@ const RAMP_I = 150, RAMP_LEN = 6, RAMP_H = 2.3;
   for (const sd of [-1, 1]) { const post = new THREE.Mesh(new THREE.BoxGeometry(.5, RAMP_H, .5), brassMat); post.position.set(e.x + sE.x * sd * (W / 2 + .3), RAMP_H / 2, e.z + sE.z * sd * (W / 2 + .3)); scene.add(post); }
   const lip = new THREE.Mesh(new THREE.BoxGeometry(W + 1, .25, .4), brassMat); lip.position.set(e.x, RAMP_H + .1, e.z); lip.rotation.y = Math.atan2(T[RAMP_I + RAMP_LEN].x, T[RAMP_I + RAMP_LEN].z); scene.add(lip);
 }
-const PADS = [[35, 4], [520, -4]].map(([i, l]) => {
+// ---------- v17 warp ramps: neon wedges in the middle of the road; launch + big speed boost on landing ----------
+const WARP_LEN = 4, WARP_H = 1.5, WARP_HW = 9.5, NOWARP = Q.has('nowarp');
+const WARPS = [15, 190, 482].map(i => ({ i, len: WARP_LEN }));
+{ const wTex = canvasTex(128, 128, (g) => { const gr = g.createLinearGradient(0, 0, 0, 128); gr.addColorStop(0, '#2a0050'); gr.addColorStop(1, '#00304a'); g.fillStyle = gr; g.fillRect(0, 0, 128, 128);
+    g.strokeStyle = '#ff4fd8'; g.lineWidth = 12; g.lineCap = 'round'; for (const y of [28, 68, 108]) { g.beginPath(); g.moveTo(10, y + 18); g.lineTo(64, y - 18); g.lineTo(118, y + 18); g.stroke(); }
+    g.strokeStyle = '#6ff'; g.lineWidth = 6; g.strokeRect(3, -10, 122, 148); });
+  const chevM = new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, map: canvasTex(256, 64, (g) => { g.lineCap = g.lineJoin = 'round'; g.strokeStyle = '#2a0050'; g.lineWidth = 22; const ch = () => { g.beginPath(); g.moveTo(14, 56); g.lineTo(128, 10); g.lineTo(242, 56); g.stroke(); }; ch(); g.strokeStyle = '#ff4fd8'; g.lineWidth = 12; ch(); }) });
+  const surf = new THREE.MeshBasicMaterial({ map: wTex, side: THREE.DoubleSide }), sideM = new THREE.MeshBasicMaterial({ color: 0x33ffff }), pyl = new THREE.MeshBasicMaterial({ color: 0xff4fd8 });
+  for (const w of WARPS) { const pos = [], uv = [], idx = []; let k = 0;
+    for (let n = 0; n <= w.len; n++) { const i = (w.i + n) % N, p = P[i], sd = S[i], y = E[i] + .06 + WARP_H * n / w.len; pos.push(p.x - sd.x * WARP_HW, y, p.z - sd.z * WARP_HW, p.x + sd.x * WARP_HW, y, p.z + sd.z * WARP_HW); uv.push(0, n / w.len, 1, n / w.len); if (n < w.len) idx.push(k, k + 1, k + 2, k + 1, k + 3, k + 2); k += 2; }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); scene.add(new THREE.Mesh(g, surf));
+    const e = (w.i + w.len) % N, pe = P[e], se = S[e], rot = Math.atan2(T[e].x, T[e].z);
+    const lip = new THREE.Mesh(new THREE.BoxGeometry(WARP_HW * 2 + .6, .3, .5), sideM); lip.position.set(pe.x, E[e] + WARP_H + .1, pe.z); lip.rotation.y = rot; scene.add(lip);
+    for (const sd of [-1, 1]) { const q = P[w.i], sq = S[w.i]; // tall neon pylons with a bright cap: visible from far away
+      const post = new THREE.Mesh(new THREE.CylinderGeometry(.3, .3, 6, 8), pyl); post.position.set(pe.x + se.x * sd * (WARP_HW + .7), E[e] + 3, pe.z + se.z * sd * (WARP_HW + .7)); scene.add(post);
+      const cap = new THREE.Mesh(new THREE.OctahedronGeometry(.9), sideM); cap.position.set(post.position.x, post.position.y + 3.6, post.position.z); scene.add(cap); w.caps = (w.caps || []).concat(cap);
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(.25, WARP_H, (w.len) * SEG), sideM); wall.position.set(q.x + (pe.x - q.x) / 2 + sq.x * sd * WARP_HW, E[w.i] + WARP_H / 2, q.z + (pe.z - q.z) / 2 + sq.z * sd * WARP_HW); wall.rotation.y = rot; wall.scale.y = .5; wall.position.y -= WARP_H / 4; scene.add(wall); }
+    // approach chevrons painted on the road
+    for (let n = 1; n <= 3; n++) { const i = (w.i - n * 6 + N) % N; const m = new THREE.Mesh(new THREE.PlaneGeometry(WARP_HW * 1.6, 4), chevM); m.rotation.set(-Math.PI / 2, 0, Math.atan2(T[i].x, T[i].z) + Math.PI); m.position.set(P[i].x, E[i] + .08, P[i].z); scene.add(m); } } }
+const warpAt = c => { if (c.alley || NOWARP || window.__tt.nowarp || Math.abs(c.lat) > WARP_HW) return null; for (const w of WARPS) if ((c.idx - w.i + N) % N < w.len) return w; return null; };
+const PADS = [[52, 4], [520, -4]].map(([i, l]) => {
   const p = P[i].clone().addScaledVector(S[i], l); p.y = E[i];
   const g = new THREE.Group(); const shell = new THREE.Mesh(new THREE.CylinderGeometry(2.7, 2.7, .45, 28), new THREE.MeshStandardMaterial({ color: 0xc0203a, metalness: .3, roughness: .4 })); shell.position.y = .22; g.add(shell);
   const head = new THREE.Mesh(new THREE.CircleGeometry(2.5, 28), new THREE.MeshLambertMaterial({ color: 0xfdf6e3 })); head.rotation.x = -Math.PI / 2; head.position.y = .46; g.add(head);
@@ -339,7 +359,7 @@ function addStand(x, y, z, rotY) {
   const home = new THREE.Vector3(x, y, z); g.position.copy(home); g.rotation.y = rotY; scene.add(g);
   stands.push({ g, x, z, y, home, rotY, down: 0, vx: 0, vz: 0, spin: 0 });
 }
-for (const [i, l] of [[100, -7], [195, 6], [300, -5], [480, 7], [575, -5]]) { const p = P[i].clone().addScaledVector(S[i], l); addStand(p.x, E[i], p.z, Math.atan2(T[i].x, T[i].z)); }
+for (const [i, l] of [[100, -7], [140, 6], [300, -5], [440, -6], [575, -5]]) { const p = P[i].clone().addScaledVector(S[i], l); addStand(p.x, E[i], p.z, Math.atan2(T[i].x, T[i].z)); }
 function restoreStand(s) { s.down = 0; s.x = s.home.x; s.z = s.home.z; s.g.position.copy(s.home); s.g.rotation.set(0, s.rotY, 0); }
 
 // shortcut alley (v15): wide cobbled lane with boost pads, neon arches + road arrows at both mouths, no obstacles
@@ -431,7 +451,7 @@ function metroBob() { const a = metro.ang, i = METRO_I; const lat = Math.sin(a) 
 
 // ---------- race state ----------
 const race = { state: 'menu', t: 0, countdown: 0, style: 0, band: .35, results: null, place: 5, musicOn: false, lastPlace: 5,
-  stats: { drifts: 0, driftBoosts: [0, 0, 0], jumps: 0, tricks: 0, passes: 0, crashes: 0, dashes: 0, alley: 0, blasts: 0, aiMoves: 0, bumps: 0, metroHits: 0, timpHits: 0 } };
+  stats: { drifts: 0, driftBoosts: [0, 0, 0], jumps: 0, tricks: 0, passes: 0, crashes: 0, dashes: 0, alley: 0, blasts: 0, aiMoves: 0, bumps: 0, metroHits: 0, timpHits: 0, warps: 0 } };
 window.__tt = Object.assign(window.__tt || {}, { race, player, cars, stands, timps, P, T, RL, errors: [] });
 window.__tt.sim = (dt) => sim(dt);
 Object.defineProperty(window.__tt, 'acState', { get: () => AC ? AC.state : 'none' });
@@ -554,6 +574,7 @@ function aiControl(c, dt) {
   // avoid stands + timpani ahead
   const obs = stands.filter(s => !s.down).concat(timps.filter(t => t.g.visible));
   for (const s of obs) { const dx = s.x - c.x, dz = s.z - c.z, fwd = dx * Math.sin(c.h) + dz * Math.cos(c.h); if (fwd > 0 && fwd < 28) { const sideR = -dx * Math.cos(c.h) + dz * Math.sin(c.h); if (Math.abs(sideR) < 2.8) lane = c.lat + (sideR > 0 ? -3.6 : 3.6); } }
+  if (!NOWARP) for (const w of WARPS) { const d = (w.i - c.idx + N) % N; if (d < 30 && d > 0) lane = Math.max(-WARP_HW + 3.5, Math.min(WARP_HW - 3.5, lane)); } // line up on warp ramps
   lane = Math.max(-W / 2 + 1.4, Math.min(W / 2 - 1.4, lane));
   let [tx, tz] = trackPt(c.idx + look, lane);
   // shortcut alley
@@ -627,6 +648,7 @@ function stepCar(c, dt) {
   let top = c.top * (c.isPlayer ? 1 : c.aiSkill * rubber(c));
   if (off && c.dash <= 0) top *= .55;
   if (c.alley) top *= 1.25; // turbo lane
+  if (c.warpT > 0) top *= 1.4; // warp boost after a warp-ramp landing
   if (c.boost > 0) top *= 1.28;
   if (c.dash > 0) top *= 1.42;
   if (c.finished) top *= .5;
@@ -634,7 +656,7 @@ function stepCar(c, dt) {
     if (c.drift) c.v -= (c.v > top ? (c.v - top) * 1.5 : 0) * dt + c.v * .05 * dt; // drifting: brake doesn't slow much
     else if (brake) c.v -= 45 * dt;
     else if (gas === 0 && c.isPlayer) c.v -= (6 + c.v * .12) * dt;
-    else if (c.v < top) c.v += c.accel * gas * dt * (c.boost > 0 || c.dash > 0 ? 2.2 : 1) * (1 - .4 * c.v / top);
+    else if (c.v < top) c.v += c.accel * gas * dt * (c.boost > 0 || c.dash > 0 || c.warpT > 0 ? 2.2 : 1) * (1 - .4 * c.v / top);
     else c.v -= (c.v - top) * Math.min(1, dt * 1.5);
   }
   c.v = Math.max(0, c.v);
@@ -653,7 +675,7 @@ function stepCar(c, dt) {
   c.vh += angDiff(c.h, c.vh) * Math.min(1, dt * (c.drift ? 2.6 : c.air ? 0 : 12));
   c.x += Math.sin(c.vh) * c.v * dt + c.px * dt; c.z += Math.cos(c.vh) * c.v * dt + c.pz * dt;
   const pd = Math.exp(-dt * 4); c.px *= pd; c.pz *= pd;
-  c.boost -= dt; c.dash -= dt; c.hitT += dt; c.grip -= dt; c.wallT += dt;
+  c.boost -= dt; c.dash -= dt; if (c.warpT > 0) c.warpT -= dt; c.hitT += dt; c.grip -= dt; c.wallT += dt;
 
   // --- track position / alley ---
   const prev = c.idx;
@@ -681,7 +703,11 @@ function stepCar(c, dt) {
   // --- vertical: ramp, pads, air, landing ---
   if (!c.air) {
     const onR = !c.alley && c.idx >= RAMP_I && c.idx < RAMP_I + RAMP_LEN && Math.abs(c.lat) < W / 2;
-    if (onR) { c.y = RAMP_H * (c.idx - RAMP_I + .5) / RAMP_LEN; c.onRamp = true; }
+    const wr = onR ? null : warpAt(c);
+    if (onR) { c.y = RAMP_H * (c.idx - RAMP_I + .5) / RAMP_LEN; c.onRamp = true; c.onWarp = null; }
+    else if (wr) { c.y = WARP_H * (((c.idx - wr.i + N) % N) + .5) / wr.len; c.onRamp = true; c.onWarp = wr; }
+    else if (c.onRamp && c.onWarp) { const w = c.onWarp, d = (c.idx - w.i + N) % N; c.onRamp = false; c.onWarp = null;
+      if (d >= w.len && d < w.len + 5 && c.v > 8) { launch(c, 7 + c.v * .06); c.warp = true; c.warpV0 = c.v; window.__tt.warpHits = window.__tt.warpHits || { player: 0, ai: 0 }; window.__tt.warpHits[c.isPlayer ? 'player' : 'ai']++; if (c.isPlayer) { race.stats.warps++; if (AC) for (let k = 0; k < 4; k++) brass(mf(67 + k * 4), AC.currentTime + k * .04, .12, .1); } } else c.y = 0; }
     else if (c.onRamp) { c.onRamp = false; if (c.idx >= RAMP_I + RAMP_LEN && c.idx < RAMP_I + RAMP_LEN + 4 && c.v > 8) launch(c, 4 + c.v * .2); else c.y = 0; }
     else c.y = 0;
     for (const pd of PADS) if (Math.hypot(pd.x - c.x, pd.z - c.z) < 2.6 && !c.air) { launch(c, 12 + c.v * .04); pd.squash = 1; if (nearPlayer(c, 30) && AC) { drum(AC.currentTime, 'kick'); drum(AC.currentTime + .02, 'kick'); } }
@@ -708,6 +734,8 @@ function nearAlleyMouth(c) { const { t, u } = alleyUV(c.x, c.z); return t > ALLE
 function launch(c, vy) { c.air = true; c.vy = vy; c.onRamp = false; c.trick = -1; if (c.drift) { c.drift = 0; c.tier = 0; } if (c.isPlayer) { race.stats.jumps++; } }
 function land(c) {
   c.air = false; c.y = 0; c.vy = 0; c.vh = c.h;
+  if (c.warp) { c.warp = false; c.warpT = 2.6; c.v = Math.max(c.v + 10, c.top * 1.45); ring(c.x, E[c.idx], c.z, 0xff4fd8, 6);
+    if (c.isPlayer) { toast('WARP BOOST!'); race.style += 60; band(.08); if (AC) for (let k = 0; k < 5; k++) brass(mf(72 + [0, 4, 7, 12, 16][k]), AC.currentTime + k * .05, .15, .12, master, 5000); } }
   if (c.isPlayer) {
     if (c.trick >= 0) { race.stats.tricks++; race.style += 150; band(.2); c.meter = Math.min(1, c.meter + .35); c.boost = Math.max(c.boost, .9); toast('flip trick!'); sfx(880, .3, .2); }
     else { race.style += 40; band(.08); }
@@ -722,8 +750,19 @@ function onLap(c) {
   if (c.lap === 0) return;
   if (!c.isPlayer) c.useAlley = Math.random() < .35;
   if (c.lap >= LAPS && !c.finished) { c.finished = true; c.finishTime = race.t; if (c.isPlayer) finishRace(); }
-  else if (c.isPlayer) { toast(c.lap === LAPS - 1 ? 'final lap' : 'lap ' + (c.lap + 1)); stands.forEach(restoreStand); sfx(523, .25); }
+  else if (c.isPlayer) { if (c.lap === LAPS - 1) finalLap(); else { toast('lap ' + (c.lap + 1)); sfx(523, .25); } stands.forEach(restoreStand); }
 }
+// v17: big arcade FINAL LAP banner (~2 s, upper screen so the road stays visible) + fanfare + flashing lap box
+let finalT = null;
+function finalLap() {
+  const el = $('finallap'); el.classList.remove('go'); void el.offsetWidth; el.classList.add('go'); el.style.display = 'block';
+  $('lap').classList.add('flashlap'); clearTimeout(finalT); finalT = setTimeout(() => { el.style.display = 'none'; el.classList.remove('go'); setTimeout(() => $('lap').classList.remove('flashlap'), 2000); }, 2100);
+  window.__tt.finalLapShown = (window.__tt.finalLapShown || 0) + 1;
+  if (AC) { const t = AC.currentTime + .02, s = .11; // da-da-da-DAAA fanfare in C + snare roll
+    [[67, 0, .1], [67, 1, .1], [67, 2, .1], [72, 3, .5], [76, 3, .5], [79, 3, .5], [74, 5.5, .12], [76, 6.5, .12], [79, 7.5, .6], [84, 7.5, .6]].forEach(([m, k, d]) => brass(mf(m), t + k * s, d, .16, master, 5200));
+    for (let k = 0; k < 12; k++) drum(t + k * .045, 'snare'); drum(t + 3 * s, 'kick'); drum(t + 7.5 * s, 'kick'); }
+}
+window.__tt.finalLap = finalLap;
 let flashT = 0, toastT = 0;
 function flash(t) { $('msg').textContent = t; flashT = .8; } // center: countdown only
 function toast(t) { const el = $('toast'); el.textContent = t; el.style.display = 'block'; toastT = .8; }
@@ -786,12 +825,12 @@ function syncMeshes() {
     if (window.__tt.freeze) continue;
     c.mesh.position.set(c.x, gy + c.y, c.z); c.mesh.rotation.y = c.h;
     let pitch = c.alley ? 0 : -Math.atan(slope);
-    if (c.onRamp) pitch -= Math.atan(RAMP_H / (RAMP_LEN * SEG));
+    if (c.onRamp) pitch -= c.onWarp ? Math.atan(WARP_H / (WARP_LEN * SEG)) : Math.atan(RAMP_H / (RAMP_LEN * SEG));
     if (c.air) pitch += -Math.atan(c.vy / Math.max(10, c.v)) * .5 + (c.trick >= 0 ? c.trick * Math.PI * 2 : 0);
     c.mesh.rotation.x = pitch; c.mesh.rotation.z = c.drift ? -c.drift * .12 : -c.steer * .06 * Math.min(1, c.v / 40);
     const U = c.mesh.userData.anim; if (U && !window.__tt.freeze) { // wheel spin, front-wheel steer, per-instrument animation, bell glow on boost
       const sp = c.v * camDt / U.r; for (const w of U.wheels) w.rotation.x += sp * (w.userData.k || 1); for (const f of U.front) f.rotation.y = c.steer * .4;
-      const pow = c.dash > 0 ? 1 : c.boost > 0 ? .75 : 0; if (U.tick) U.tick(c, camDt, pow, race.t + c.phase); if (U.beam) U.beam.visible = !c.air;
+      const pow = c.dash > 0 || c.warpT > 0 ? 1 : c.boost > 0 ? .75 : 0; if (U.tick) U.tick(c, camDt, pow, race.t + c.phase); if (U.beam) U.beam.visible = !c.air;
       for (const gl of U.glows) { gl.material.opacity = .3 + pow * .65; gl.scale.setScalar(1 + pow * .25); } }
     const sh = c.mesh.userData.shadow; sh.position.set(c.x, gy + .05 + (c.onRamp ? c.y : 0), c.z); sh.rotation.z = -c.h; sh.material.opacity = .35 / (1 + c.y * .25);
   }
@@ -819,6 +858,8 @@ function drawMinimap() {
     g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = sz * .075; g.stroke(); g.strokeStyle = '#d8d4e0'; g.lineWidth = sz * .045; g.stroke();
     // shortcut alley (cyan dashed)
     g.setLineDash([sz * .03, sz * .02]); g.strokeStyle = '#4ff'; g.lineWidth = sz * .03; g.beginPath(); g.moveTo(X(ALLEY.a.x), Z(ALLEY.a.z)); g.lineTo(X(ALLEY.b.x), Z(ALLEY.b.z)); g.stroke(); g.setLineDash([]);
+    // warp ramps: small magenta chevrons pointing along the track
+    for (const w of WARPS) { const i = w.i, ang = Math.atan2(T[i].z, T[i].x), r = sz * .04; g.save(); g.translate(X(P[i].x), Z(P[i].z)); g.rotate(ang); g.beginPath(); g.moveTo(r, 0); g.lineTo(-r * .7, r * .8); g.lineTo(-r * .2, 0); g.lineTo(-r * .7, -r * .8); g.closePath(); g.fillStyle = '#ff4fd8'; g.fill(); g.lineWidth = sz * .008; g.strokeStyle = '#fff'; g.stroke(); g.restore(); }
     // start/finish tick
     const s0 = S[0]; g.strokeStyle = '#fff'; g.lineWidth = sz * .018; g.beginPath(); g.moveTo(X(P[0].x - s0.x * 22), Z(P[0].z - s0.z * 22)); g.lineTo(X(P[0].x + s0.x * 22), Z(P[0].z + s0.z * 22)); g.stroke(); }
   ctx.clearRect(0, 0, sz, sz); ctx.drawImage(MM.bg, 0, 0);
@@ -829,7 +870,7 @@ function drawMinimap() {
   ctx.save(); ctx.translate(x, z); ctx.rotate(Math.atan2(Math.cos(player.h), Math.sin(player.h))); const r = sz * .075; // screen angle of heading (dx=sin h, dz=cos h)
   ctx.beginPath(); ctx.moveTo(r, 0); ctx.lineTo(-r * .7, r * .62); ctx.lineTo(-r * .35, 0); ctx.lineTo(-r * .7, -r * .62); ctx.closePath(); ctx.fillStyle = pc; ctx.fill(); ctx.lineWidth = sz * .016; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
 }
-window.__tt.minimap = drawMinimap;
+window.__tt.minimap = drawMinimap; window.__tt.WARPS = WARPS;
 function hud() {
   const order = [...cars].sort((a, b) => progress(b) - progress(a)); race.place = order.indexOf(player) + 1;
   if (race.state === 'race') { if (race.place < race.lastPlace) { race.stats.passes++; race.style += 75; band(.1); } race.lastPlace = race.place; }
