@@ -8,16 +8,17 @@ html,body{margin:0;padding:0;width:100%;height:100%;height:100dvh;overflow:hidde
 canvas{display:block;position:fixed;left:0;top:0;width:100vw;height:100vh;height:100dvh}
 #hud{position:fixed;inset:0;pointer-events:none}
 .box{position:absolute;background:rgba(10,10,40,.45);border:1px solid rgba(255,211,77,.7);border-radius:6px;padding:2px 7px;text-shadow:1px 1px 0 #000;font-size:12px;line-height:1.25}
-#place{top:calc(6px + var(--st));left:calc(6px + var(--sl));font-size:18px;color:#ffd34d}
+#place{top:calc(6px + var(--st));left:calc(12px + var(--mmw) + var(--sl));font-size:18px;color:#ffd34d}
 #lap{top:calc(6px + var(--st));right:calc(6px + var(--sr));text-align:right}
 #note{top:calc(4px + var(--st));left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap}
 #note b{font-size:15px}
-#toast{top:calc(34px + var(--st));left:calc(6px + var(--sl));font-size:11px;color:#ffd34d;border:0;background:rgba(0,0,0,.35);display:none}
+#toast{top:calc(38px + var(--st));left:calc(12px + var(--mmw) + var(--sl));font-size:11px;color:#ffd34d;border:0;background:rgba(0,0,0,.35);display:none}
 #speed{bottom:calc(6px + var(--sb));left:50%;transform:translateX(-50%);font-size:11px;display:flex;gap:8px;align-items:center}
 #meterbar{width:70px;height:6px;background:#333;border-radius:3px;overflow:hidden}#meterfill{height:100%;width:0;background:linear-gradient(90deg,#f90,#ff4)}
-#mmap{position:absolute;left:auto;display:block;top:calc(48px + var(--st));right:calc(6px + var(--sr));width:180px;height:180px;background:rgba(10,10,40,.45);border:1px solid rgba(255,211,77,.7);border-radius:10px}
-@media (max-height:600px){#mmap{width:128px;height:128px}}
-@media (max-height:430px){#mmap{width:104px;height:104px;top:calc(44px + var(--st))}}
+:root{--mmw:180px}
+#mmap{position:absolute;right:auto;display:block;top:calc(6px + var(--st));left:calc(6px + var(--sl));width:var(--mmw);height:var(--mmw);box-sizing:border-box;background:rgba(10,10,40,.45);border:1px solid rgba(255,211,77,.7);border-radius:10px}
+@media (max-height:600px){:root{--mmw:128px}}
+@media (max-height:430px){:root{--mmw:104px}}
 #msg{position:absolute;top:30%;width:100%;text-align:center;font-size:44px;color:#ffd34d;text-shadow:3px 3px 0 #a20,0 0 10px #000}
 .btn{position:absolute;pointer-events:auto;touch-action:none;width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.55);font-size:24px;display:flex;align-items:center;justify-content:center;text-align:center;font-size:13px}
 .btn.on{background:rgba(255,211,77,.5)}
@@ -78,7 +79,7 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
  <p><b>Brass City</b> · 3 laps · 8 instrument cars</p>
  <p><span class="touchonly"><b>Steer</b> with ◀ ▶ and hold <b>GAS</b>. Flips and your car's special move fire automatically when the meter fills.</span><span class="kbdonly"><b>Keyboard:</b> ↑ gas, ↓ brake, ← → steer, <b>Shift</b> drift (sparks go <span style="color:#5af">blue</span> then <span style="color:#f90">orange</span>; let go to boost), <b>Space</b> special move / flip in the air.</span> Find Backbeat Alley; dodge stands, timpani and the giant metronome. Style fills the <b>Band Meter</b>.</p></div>
  <div class="col-r">
- <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v15 · © 2026 Backline Vintage</p></div>
+ <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v16 · © 2026 Backline Vintage</p></div>
 </div></div>
 <div id="garage"><div id="gtitle">CHOOSE YOUR RIDE</div>
  <button id="gprev" class="garr">◀</button><button id="gnext" class="garr">▶</button>
