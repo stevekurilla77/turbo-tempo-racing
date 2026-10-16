@@ -65,7 +65,7 @@ const SEG = curve.getLength() / N;
 const HILL_C = 415, HILL_W = 52, HILL_H = 7;
 const E = P.map((p, i) => Math.abs(i - HILL_C) < HILL_W ? HILL_H * (.5 + .5 * Math.cos(Math.PI * (i - HILL_C) / HILL_W)) : 0);
 // shortcut alley: straight cut from P[ALLEY_A] to P[ALLEY_B] (inside of the S-bend)
-const ALLEY_A = 265, ALLEY_B = 340, ALLEY_HW = 3.6;
+const ALLEY_A = 245, ALLEY_B = 360, ALLEY_HW = 6.5; // v15: longer, smoother cut (~78 units shorter than the road) + wider, with turbo pads
 
 function canvasTex(w, h, draw, rep) {
   const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), w, h);
@@ -342,29 +342,56 @@ function addStand(x, y, z, rotY) {
 for (const [i, l] of [[100, -7], [195, 6], [300, -5], [480, 7], [575, -5]]) { const p = P[i].clone().addScaledVector(S[i], l); addStand(p.x, E[i], p.z, Math.atan2(T[i].x, T[i].z)); }
 function restoreStand(s) { s.down = 0; s.x = s.home.x; s.z = s.home.z; s.g.position.copy(s.home); s.g.rotation.set(0, s.rotY, 0); }
 
-// shortcut alley: cobblestones, brick walls, a neon sign, two stands inside
+// shortcut alley (v15): wide cobbled lane with boost pads, neon arches + road arrows at both mouths, no obstacles
 const ALLEY = (() => {
   const a = P[ALLEY_A], b = P[ALLEY_B], dir = new THREE.Vector3(b.x - a.x, 0, b.z - a.z), L = dir.length(); dir.normalize();
-  const side = new THREE.Vector3(-dir.z, 0, dir.x);
-  // t range where the alley is off the main road+sidewalk
-  let t0 = 0, t1 = 1; for (let t = 0; t < .5; t += .002) { const x = a.x + dir.x * L * t, z = a.z + dir.z * L * t; let md = 1e9; for (let j = ALLEY_A - 30; j < ALLEY_A + 30; j++) { const q = P[(j + N) % N]; md = Math.min(md, Math.hypot(q.x - x, q.z - z)); } if (md > W / 2 + 4) { t0 = t; break; } }
-  for (let t = 1; t > .5; t -= .002) { const x = a.x + dir.x * L * t, z = a.z + dir.z * L * t; let md = 1e9; for (let j = ALLEY_B - 30; j < ALLEY_B + 30; j++) { const q = P[(j + N) % N]; md = Math.min(md, Math.hypot(q.x - x, q.z - z)); } if (md > W / 2 + 4) { t1 = t; break; } }
+  const side = new THREE.Vector3(-dir.z, 0, dir.x), rotY = Math.atan2(dir.x, dir.z);
+  const at = (t, u) => [a.x + dir.x * L * t + side.x * u, a.z + dir.z * L * t + side.z * u];
+  const roadD = (x, z, i0) => { let md = 1e9; for (let j = i0 - 40; j < i0 + 40; j++) { const q = P[(j + N) % N]; md = Math.min(md, Math.hypot(q.x - x, q.z - z)); } return md; };
+  // first t (from each end) where lateral offset u is `clear` units from the road centre line
+  const clearT = (u, clear, fromEnd) => { if (!fromEnd) { for (let t = 0; t < .5; t += .002) if (roadD(...at(t, u), ALLEY_A) > clear) return t; return .5; }
+    for (let t = 1; t > .5; t -= .002) if (roadD(...at(t, u), ALLEY_B) > clear) return t; return .5; };
+  const H = ALLEY_HW + .5, CURB = W / 2 + 1.3, WALK = W / 2 + 8.6;
+  const f0 = [clearT(-H, CURB, 0), clearT(H, CURB, 0)], f1 = [clearT(-H, CURB, 1), clearT(H, CURB, 1)]; // floor follows the curb line
+  const w0 = [clearT(-H, WALK, 0), clearT(H, WALK, 0)], w1 = [clearT(-H, WALK, 1), clearT(H, WALK, 1)]; // walls start past the sidewalk
+  const t0 = Math.max(...w0), t1 = Math.min(...w1);
   const cobble = canvasTex(64, 64, (g) => { g.fillStyle = '#5a4f4a'; g.fillRect(0, 0, 64, 64); for (let y = 0; y < 64; y += 10) for (let x = (y / 10) % 2 * 6; x < 64; x += 12) { g.fillStyle = `hsl(20,8%,${30 + Math.random() * 14}%)`; g.beginPath(); g.ellipse(x + 5, y + 5, 5, 4, 0, 0, 7); g.fill(); } }, true);
-  const len = (t1 - t0 + .06) * L, mid = (t0 + t1) / 2;
-  const floor = new THREE.Mesh(new THREE.PlaneGeometry(ALLEY_HW * 2 + 1, len), new THREE.MeshLambertMaterial({ map: cobble })); cobble.repeat.set(1.2, len / 7);
-  floor.rotation.x = -Math.PI / 2; floor.rotation.z = Math.atan2(dir.x, dir.z); floor.position.set(a.x + dir.x * L * mid, .1, a.z + dir.z * L * mid); scene.add(floor);
+  { const pos = [], uv = [], C = [[f0[0], -H], [f0[1], H], [f1[0], -H], [f1[1], H]];
+    for (const [t, u] of C) { const [x, z] = at(t, u); pos.push(x, .14, z); uv.push(u / 7, t * L / 7); }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex([0, 2, 1, 1, 2, 3]); g.computeVertexNormals();
+    if (g.attributes.normal.getY(0) < 0) g.setIndex([0, 1, 2, 1, 3, 2]), g.computeVertexNormals();
+    scene.add(new THREE.Mesh(g, new THREE.MeshLambertMaterial({ map: cobble }))); }
+  // glowing edge lines so the lane reads from far away
+  for (const sd of [-1, 1]) { const k = sd < 0 ? 0 : 1, ta = f0[k], tb = f1[k], len = (tb - ta) * L, [x, z] = at((ta + tb) / 2, sd * (ALLEY_HW - .2));
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(.35, len), new THREE.MeshBasicMaterial({ color: 0x66ffff })); m.rotation.set(-Math.PI / 2, 0, rotY); m.position.set(x, .16, z); scene.add(m); }
   const brick = canvasTex(64, 64, (g) => { g.fillStyle = '#7a3b2e'; g.fillRect(0, 0, 64, 64); g.strokeStyle = '#4a2018'; g.lineWidth = 2; for (let y = 0; y < 64; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y); g.stroke(); for (let x = (y / 8) % 2 * 8; x < 64; x += 16) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 8); g.stroke(); } } }, true);
-  brick.repeat.set((t1 - t0) * L / 8, 1.5);
-  for (const sd of [-1, 1]) { const w = new THREE.Mesh(new THREE.BoxGeometry(1, 9, (t1 - t0) * L), new THREE.MeshLambertMaterial({ map: brick })); w.position.set(a.x + dir.x * L * mid + side.x * sd * (ALLEY_HW + .5), 4.5, a.z + dir.z * L * mid + side.z * sd * (ALLEY_HW + .5)); w.rotation.y = Math.atan2(dir.x, dir.z); scene.add(w); }
-  // hanging string lights
-  for (let t = t0 + .08; t < t1; t += .12) { const bulb = new THREE.Mesh(new THREE.SphereGeometry(.25, 8, 6), new THREE.MeshBasicMaterial({ color: [0xffd34d, 0x7ff, 0xff6a9a][Math.floor(t * 30) % 3] })); bulb.position.set(a.x + dir.x * L * t, 6.5, a.z + dir.z * L * t); scene.add(bulb); }
-  // neon sign at the mouth
-  const st = canvasTex(256, 64, (g) => { g.fillStyle = '#1a0a2a'; g.fillRect(0, 0, 256, 64); g.strokeStyle = '#ff4fb0'; g.lineWidth = 4; g.strokeRect(4, 4, 248, 56); g.fillStyle = '#7ff'; g.font = 'bold 30px Arial Black, Impact'; g.textAlign = 'center'; g.fillText('BACKBEAT ALLEY ➜', 128, 43); });
-  const sign = new THREE.Mesh(new THREE.PlaneGeometry(7, 1.75), new THREE.MeshBasicMaterial({ map: st, side: THREE.DoubleSide }));
-  sign.position.set(a.x + dir.x * L * t0 + side.x * 0, 7.8, a.z + dir.z * L * t0); sign.rotation.y = Math.atan2(dir.x, dir.z) + Math.PI; scene.add(sign);
-  for (const [t, u] of [[.42, 1.6], [.66, -1.6]]) { const x = a.x + dir.x * L * t + side.x * u, z = a.z + dir.z * L * t + side.z * u; addStand(x, 0, z, Math.atan2(dir.x, dir.z)); }
-  return { a, b, dir, side, L, t0, t1 };
+  for (const sd of [-1, 1]) { const k = sd < 0 ? 0 : 1, ta = w0[k], tb = w1[k], len = (tb - ta) * L, tex = brick.clone(); tex.repeat.set(len / 8, 1.5); tex.needsUpdate = true;
+    const w = new THREE.Mesh(new THREE.BoxGeometry(1, 9, len), new THREE.MeshLambertMaterial({ map: tex })); const [x, z] = at((ta + tb) / 2, sd * (ALLEY_HW + .5)); w.position.set(x, 4.5, z); w.rotation.y = rotY; scene.add(w); }
+  // string lights
+  for (let t = t0 + .05, n = 0; t < t1; t += .08, n++) { const bulb = new THREE.Mesh(new THREE.SphereGeometry(.3, 8, 6), new THREE.MeshBasicMaterial({ color: [0xffd34d, 0x7ff, 0xff6a9a][n % 3] })); const [x, z] = at(t, 0); bulb.position.set(x, 7.2, z); scene.add(bulb); }
+  // boost pads: full-width glowing chevrons (can't miss them)
+  const padTex = canvasTex(128, 128, (g) => { g.fillStyle = '#102a40'; g.fillRect(0, 0, 128, 128); g.strokeStyle = '#3ff'; g.lineWidth = 14; g.lineCap = 'round'; for (const y of [30, 70, 110]) { g.beginPath(); g.moveTo(12, y); g.lineTo(64, y - 30); g.lineTo(116, y); g.stroke(); } });
+  const pads = [];
+  for (let k = 0; k < 4; k++) { const t = t0 + .04 + (t1 - t0 - .16) * k / 3, [x, z] = at(t, 0);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(ALLEY_HW * 2 - 1, 7), new THREE.MeshBasicMaterial({ map: padTex, transparent: true, opacity: .95 })); m.rotation.set(-Math.PI / 2, 0, rotY + Math.PI); m.position.set(x, .18, z); scene.add(m); pads.push({ t, m }); }
+  // neon arches at both mouths
+  const signTex = (txt) => canvasTex(512, 96, (g) => { g.fillStyle = '#1a0a2a'; g.fillRect(0, 0, 512, 96); g.strokeStyle = '#ff4fb0'; g.lineWidth = 6; g.strokeRect(5, 5, 502, 86); g.fillStyle = '#7ff'; g.font = 'bold 40px Arial Black, Impact'; g.textAlign = 'center'; g.fillText(txt, 256, 62); });
+  const neonPost = new THREE.MeshBasicMaterial({ color: 0xff4fb0 });
+  for (const [t, txt, flip] of [[t0, 'SHORTCUT ➜ BACKBEAT ALLEY', 0], [t1, 'BACKBEAT ALLEY', 1]]) {
+    for (const sd of [-1, 1]) { const post = new THREE.Mesh(new THREE.CylinderGeometry(.45, .45, 12.5, 8), neonPost); const [x, z] = at(t, sd * (ALLEY_HW + .4)); post.position.set(x, 6.25, z); scene.add(post); }
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(ALLEY_HW * 2 + 2, 3.2), new THREE.MeshBasicMaterial({ map: signTex(txt), side: THREE.DoubleSide })); const [x, z] = at(t, 0); sign.position.set(x, 11.4, z); sign.rotation.y = rotY + Math.PI; void flip; scene.add(sign); }
+  // approach markers on the main road: big painted arrows bending toward the mouth + a roadside sign
+  const sideSign = Math.sign(dir.dot(S[ALLEY_A])) || 1;
+  const arrowTex = canvasTex(128, 128, (g) => { g.fillStyle = '#ffd34d'; g.beginPath(); g.moveTo(64, 6); g.lineTo(118, 62); g.lineTo(86, 62); g.lineTo(86, 122); g.lineTo(42, 122); g.lineTo(42, 62); g.lineTo(10, 62); g.closePath(); g.fill(); });
+  const arrowMat = new THREE.MeshBasicMaterial({ map: arrowTex, transparent: true, depthWrite: false });
+  for (let k = 0; k < 5; k++) { const i = ALLEY_A - 42 + k * 8, lat = sideSign * (2 + k * 1.7); const m = new THREE.Mesh(new THREE.PlaneGeometry(5.5, 7), arrowMat);
+    m.rotation.set(-Math.PI / 2, 0, Math.atan2(T[i].x, T[i].z) + Math.PI - sideSign * k * .12); m.position.set(P[i].x + S[i].x * lat, .09, P[i].z + S[i].z * lat); scene.add(m); }
+  { const i = ALLEY_A - 30, x = P[i].x + S[i].x * sideSign * (W / 2 + 3), z = P[i].z + S[i].z * sideSign * (W / 2 + 3);
+    const pole = new THREE.Mesh(new THREE.CylinderGeometry(.2, .2, 6), new THREE.MeshLambertMaterial({ color: 0x333 })); pole.position.set(x, 3, z); scene.add(pole);
+    const sg = new THREE.Mesh(new THREE.PlaneGeometry(6, 2), new THREE.MeshBasicMaterial({ map: signTex(sideSign > 0 ? 'SHORTCUT AHEAD ➜' : '⬅ SHORTCUT AHEAD'), side: THREE.DoubleSide })); sg.position.set(x, 6.4, z); sg.rotation.y = Math.atan2(T[i].x, T[i].z) + Math.PI; scene.add(sg); }
+  return { a, b, dir, side, L, t0, t1, f0: Math.min(...f0), f1: Math.max(...f1), pads };
 })();
+window.__tt_alley = ALLEY;
 
 // rolling timpani on the hill: roll downhill toward cars climbing it
 const TIMP_TOP = HILL_C + 8, TIMP_BOT = HILL_C - HILL_W + 4;
@@ -413,7 +440,7 @@ function startRace() {
   setLineup(playerType); gridUp(); stands.forEach(restoreStand); $('garage').style.display = 'none'; $('hud').style.display = '';
   for (const k in race.stats) race.stats[k] = Array.isArray(race.stats[k]) ? [0, 0, 0] : 0;
   Object.assign(race, { state: 'count', t: 0, countdown: 3.999, style: 0, band: .35, results: null, musicOn: true, lastPlace: 5 });
-  cars.forEach(c => { if (!c.isPlayer) c.useAlley = Math.random() < .3; }); player.useAlley = AUTOPILOT;
+  cars.forEach(c => { if (!c.isPlayer) c.useAlley = Math.random() < .35; }); player.useAlley = AUTOPILOT && Q.get('alley') !== '0';
   step = 0; nextT = AC ? AC.currentTime + .1 : 0; $('overlay').style.display = 'none';
 }
 
@@ -530,13 +557,13 @@ function aiControl(c, dt) {
   lane = Math.max(-W / 2 + 1.4, Math.min(W / 2 - 1.4, lane));
   let [tx, tz] = trackPt(c.idx + look, lane);
   // shortcut alley
-  if (c.useAlley && !c.alley) { const d = (ALLEY_A - c.idx + N) % N; if (d < 26 && d > 2) { const t = ALLEY.t0 + .06; tx = ALLEY.a.x + ALLEY.dir.x * ALLEY.L * t; tz = ALLEY.a.z + ALLEY.dir.z * ALLEY.L * t; } }
-  if (c.alley) { const { t } = alleyUV(c.x, c.z), tt = Math.min(1.05, t + .14); tx = ALLEY.a.x + ALLEY.dir.x * ALLEY.L * tt; tz = ALLEY.a.z + ALLEY.dir.z * ALLEY.L * tt; }
+  if (c.useAlley || c.alley) { const au = alleyUV(c.x, c.z), d = (c.idx - ALLEY_A + N) % N; // merge onto the alley line, then follow it
+    if (c.alley || ((d < 40 || d > N - 30) && au.t > -.35 && au.t < ALLEY.t0 && Math.abs(au.u) < 30)) { const tt = Math.min(1.08, Math.max(.04, au.t + .16)); tx = ALLEY.a.x + ALLEY.dir.x * ALLEY.L * tt; tz = ALLEY.a.z + ALLEY.dir.z * ALLEY.L * tt; } }
   out.steer = steerTo(c, tx, tz);
   if (c.isPlayer) { // autopilot also drifts the sharp corners and does tricks (test driver)
     const curv = Math.abs(RL[(c.idx + 6) % N]) / (W / 2 - 2.2);
     c.aDriftCD = (c.aDriftCD || 0) - dt;
-    if (Q.has('nodrift')) out.drift = 0; else { out.drift = (c.drift ? (curv > .4 || c.driftT < .9) && Math.abs(c.lat) < W / 2 - 1 : curv > .7 && c.aDriftCD <= 0) && c.v > c.top * .55 && !c.alley ? 1 : 0; if (c.drift && !out.drift) c.aDriftCD = 1.5; }
+    if (Q.has('nodrift')) out.drift = 0; else { out.drift = (c.drift ? (curv > .4 || c.driftT < .9) && Math.abs(c.lat) < W / 2 - 1 : curv > .7 && c.aDriftCD <= 0) && c.v > c.top * .55 && !c.alley && !(c.useAlley && (c.idx - ALLEY_A + N) % N < 40 + ALLEY_B - ALLEY_A || c.useAlley && (ALLEY_A - c.idx + N) % N < 45) ? 1 : 0; if (c.drift && !out.drift) c.aDriftCD = 1.5; }
     out.trick = c.air && c.trick < 0 ? 1 : 0;
   }
   return out;
@@ -595,10 +622,11 @@ function stepCar(c, dt) {
   if (c.drift) { c.driftT += dt * (.6 + .6 * Math.max(0, c.steer * c.drift)); const nt = c.driftT > 1.6 ? 2 : c.driftT > .7 ? 1 : 0; if (nt > c.tier && c.isPlayer) sfx(nt === 2 ? 660 : 440, .12, .1); c.tier = nt; }
 
   // --- speed ---
-  const off = !c.alley && Math.abs(c.lat) > W / 2 + .5;
+  const au = alleyUV(c.x, c.z), apron = Math.abs(au.u) < ALLEY_HW + 1.5 && au.t > -.02 && au.t < 1.02; // alley mouths count as road
+  const off = !c.alley && !apron && Math.abs(c.lat) > W / 2 + .5;
   let top = c.top * (c.isPlayer ? 1 : c.aiSkill * rubber(c));
   if (off && c.dash <= 0) top *= .55;
-  if (c.alley) top *= .9;
+  if (c.alley) top *= 1.25; // turbo lane
   if (c.boost > 0) top *= 1.28;
   if (c.dash > 0) top *= 1.42;
   if (c.finished) top *= .5;
@@ -629,13 +657,14 @@ function stepCar(c, dt) {
 
   // --- track position / alley ---
   const prev = c.idx;
-  const au = alleyUV(c.x, c.z);
+  Object.assign(au, alleyUV(c.x, c.z));
   const inAlleyZone = au.t > ALLEY.t0 - .01 && au.t < ALLEY.t1 + .01 && Math.abs(au.u) < ALLEY_HW + .4;
   if (!c.alley && inAlleyZone && au.t < ALLEY.t0 + .1) { c.alley = true; }
   if (c.alley) {
     if (au.t > ALLEY.t1 + .01 || au.t < ALLEY.t0 - .02) { c.alley = false; if (au.t > ALLEY.t1) { c.idx = ALLEY_B - 6; c.idx = nearestIdx(c); if (c.isPlayer) { race.stats.alley++; band(.1); race.style += 80; toast('shortcut!'); } } }
     else {
       c.idx = Math.round(ALLEY_A + (ALLEY_B - ALLEY_A) * Math.max(0, Math.min(1, au.t)));
+      for (const pd of ALLEY.pads) if (Math.abs(au.t - pd.t) * ALLEY.L < 3.5 && !c.air) { if (c.boost < 1.1 && c.isPlayer) { sfx(988, .15, .15); } c.boost = Math.max(c.boost, 2.2); c.v = Math.max(c.v, c.top * 1.45); }
       if (Math.abs(au.u) > ALLEY_HW - .9) { const push = au.u - Math.sign(au.u) * (ALLEY_HW - .9); c.x -= ALLEY.side.x * push; c.z -= ALLEY.side.z * push; c.v *= 1 - (1 - c.tough) * .06; c.h += angDiff(Math.atan2(ALLEY.dir.x, ALLEY.dir.z), c.h) * .2; c.vh = c.h; if (c.isPlayer) wallHit(c); }
       c.lat = 0;
     }
@@ -644,7 +673,7 @@ function stepCar(c, dt) {
     c.idx = nearestIdx(c);
     c.lat = (c.x - P[c.idx].x) * S[c.idx].x + (c.z - P[c.idx].z) * S[c.idx].z;
     const LIM = W / 2 + 6.5;
-    if (Math.abs(c.lat) > LIM && !inAlleyZone) { const push = c.lat - Math.sign(c.lat) * LIM; c.x -= S[c.idx].x * push; c.z -= S[c.idx].z * push; c.v *= 1 - (1 - c.tough) * .08; c.h += angDiff(Math.atan2(T[c.idx].x, T[c.idx].z), c.h) * .15; c.vh = c.h; if (c.drift) { c.drift = 0; c.tier = 0; c.driftLock = true; } if (c.isPlayer) wallHit(c); }
+    if (Math.abs(c.lat) > LIM && !inAlleyZone && !(Math.abs(au.u) < ALLEY_HW + 1.5 && au.t > -.02 && au.t < 1.02)) { const push = c.lat - Math.sign(c.lat) * LIM; c.x -= S[c.idx].x * push; c.z -= S[c.idx].z * push; c.v *= 1 - (1 - c.tough) * .08; c.h += angDiff(Math.atan2(T[c.idx].x, T[c.idx].z), c.h) * .15; c.vh = c.h; if (c.drift) { c.drift = 0; c.tier = 0; c.driftLock = true; } if (c.isPlayer) wallHit(c); }
   }
   if (prev > N * .85 && c.idx < N * .15) { if (c.maxIdx > N * .5) { c.lap++; c.maxIdx = c.idx; onLap(c); } }
   else if (!(prev < N * .15 && c.idx > N * .85)) c.maxIdx = Math.max(c.maxIdx, c.idx);
@@ -691,7 +720,7 @@ function crash(c, msg, bandLoss) { if (c.hitT > .6) { race.style -= 50; race.sta
 function tryDash(c) { if (c.meter >= 1 && c.dash <= 0) { c.meter = 0; c.dash = 1.6; c.v += 7; race.stats.dashes++; race.style += 50; band(.06); toast(c.move.toLowerCase()); if (AC) { const t = AC.currentTime; for (let k = 0; k < 6; k++) brass(mf(55 + k * 3), t + k * .05, .18, .12); } } }
 function onLap(c) {
   if (c.lap === 0) return;
-  if (!c.isPlayer) c.useAlley = Math.random() < .3;
+  if (!c.isPlayer) c.useAlley = Math.random() < .35;
   if (c.lap >= LAPS && !c.finished) { c.finished = true; c.finishTime = race.t; if (c.isPlayer) finishRace(); }
   else if (c.isPlayer) { toast(c.lap === LAPS - 1 ? 'final lap' : 'lap ' + (c.lap + 1)); stands.forEach(restoreStand); sfx(523, .25); }
 }
@@ -776,10 +805,36 @@ function syncMeshes() {
   { const o = window.__tt.camOverride; if (o) { camera.position.set(player.x + o[0], player.mesh.position.y + o[1], player.z + o[2]); camera.lookAt(player.x, player.mesh.position.y + .9, player.z); } } // test/screenshot hook only
   camera.fov = 66 + Math.min(14, player.v * .12) + (player.dash > 0 ? 6 : 0) + (player.boost > 0 ? 3 : 0); camera.updateProjectionMatrix();
 }
+// ---------- minimap (v15): track outline + live car dots ----------
+const MAPCOL = { trombone: '#ffc83a', trumpet: '#ff7a2a', sax: '#ff5ad0', tuba: '#3a8bff', clarinet: '#40e8ff', snare: '#ff3048', horn: '#b67bff', xylo: '#4cd964' };
+const MM = (() => { const cv = $('mmap'), ctx = cv.getContext('2d'); let x0 = 1e9, x1 = -1e9, z0 = 1e9, z1 = -1e9;
+  for (const p of P) { x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); z0 = Math.min(z0, p.z); z1 = Math.max(z1, p.z); }
+  return { cv, ctx, x0, x1, z0, z1, px: 0, bg: null }; })();
+function drawMinimap() {
+  const { cv, ctx } = MM, css = cv.clientWidth; if (!css) return; const dpr = Math.min(2, devicePixelRatio || 1), sz = Math.round(css * dpr);
+  const pad = sz * .1, sc = (sz - 2 * pad) / Math.max(MM.x1 - MM.x0, MM.z1 - MM.z0), ox = (sz - (MM.x1 - MM.x0) * sc) / 2, oz = (sz - (MM.z1 - MM.z0) * sc) / 2;
+  const X = x => ox + (x - MM.x0) * sc, Z = z => oz + (z - MM.z0) * sc; // top-down, not mirrored (x right, z down)
+  if (cv.width !== sz || !MM.bg) { cv.width = cv.height = sz; MM.bg = document.createElement('canvas'); MM.bg.width = MM.bg.height = sz; const g = MM.bg.getContext('2d');
+    g.lineJoin = g.lineCap = 'round'; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z))); g.closePath();
+    g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = sz * .075; g.stroke(); g.strokeStyle = '#d8d4e0'; g.lineWidth = sz * .045; g.stroke();
+    // shortcut alley (cyan dashed)
+    g.setLineDash([sz * .03, sz * .02]); g.strokeStyle = '#4ff'; g.lineWidth = sz * .03; g.beginPath(); g.moveTo(X(ALLEY.a.x), Z(ALLEY.a.z)); g.lineTo(X(ALLEY.b.x), Z(ALLEY.b.z)); g.stroke(); g.setLineDash([]);
+    // start/finish tick
+    const s0 = S[0]; g.strokeStyle = '#fff'; g.lineWidth = sz * .018; g.beginPath(); g.moveTo(X(P[0].x - s0.x * 22), Z(P[0].z - s0.z * 22)); g.lineTo(X(P[0].x + s0.x * 22), Z(P[0].z + s0.z * 22)); g.stroke(); }
+  ctx.clearRect(0, 0, sz, sz); ctx.drawImage(MM.bg, 0, 0);
+  for (const c of cars) { if (c.isPlayer || !c.mesh || !c.mesh.visible) continue; ctx.beginPath(); ctx.arc(X(c.x), Z(c.z), sz * .042, 0, 7); ctx.fillStyle = MAPCOL[c.type] || '#fff'; ctx.fill(); ctx.lineWidth = sz * .012; ctx.strokeStyle = '#000'; ctx.stroke(); }
+  // player: pulsing ring + arrow pointing along heading, in the player's car colour
+  const pc = MAPCOL[player.type] || '#fff', x = X(player.x), z = Z(player.z), pu = .5 + .5 * Math.sin(performance.now() / 180);
+  ctx.beginPath(); ctx.arc(x, z, sz * (.07 + .03 * pu), 0, 7); ctx.strokeStyle = pc; ctx.globalAlpha = .9 - .5 * pu; ctx.lineWidth = sz * .02; ctx.stroke(); ctx.globalAlpha = 1;
+  ctx.save(); ctx.translate(x, z); ctx.rotate(Math.atan2(Math.cos(player.h), Math.sin(player.h))); const r = sz * .075; // screen angle of heading (dx=sin h, dz=cos h)
+  ctx.beginPath(); ctx.moveTo(r, 0); ctx.lineTo(-r * .7, r * .62); ctx.lineTo(-r * .35, 0); ctx.lineTo(-r * .7, -r * .62); ctx.closePath(); ctx.fillStyle = pc; ctx.fill(); ctx.lineWidth = sz * .016; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
+}
+window.__tt.minimap = drawMinimap;
 function hud() {
   const order = [...cars].sort((a, b) => progress(b) - progress(a)); race.place = order.indexOf(player) + 1;
   if (race.state === 'race') { if (race.place < race.lastPlace) { race.stats.passes++; race.style += 75; band(.1); } race.lastPlace = race.place; }
   sections = race.state === 'menu' || race.state === 'garage' ? 4 : 1 + Math.min(4, Math.floor(race.band * 5));
+  if (race.state !== 'garage' && race.state !== 'menu') drawMinimap();
   $('place').textContent = ['1st', '2nd', '3rd', '4th', '5th'][race.place - 1];
   $('lap').firstChild.textContent = `LAP ${Math.min(LAPS, Math.max(1, player.lap + 1))}/${LAPS}`;
   $('style').textContent = 'STYLE ' + Math.round(race.style);
