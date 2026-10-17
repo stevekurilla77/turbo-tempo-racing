@@ -92,7 +92,7 @@ canvas{display:block;position:fixed;left:0;top:0;width:100vw;height:100vh;height
 #gname{font-size:clamp(15px,5.2vh,24px);color:#ffd34d;line-height:1.05;text-shadow:2px 2px 0 #a20}
 #gfam{font-family:system-ui;font-size:clamp(10px,3.2vh,13px);opacity:.85}
 .gs{display:flex;align-items:center;gap:8px;font-size:clamp(9px,3vh,12px)}.gs span{width:72px}.gb{flex:1;height:clamp(7px,2.4vh,11px);background:#333;border-radius:6px;overflow:hidden}.gb i{display:block;height:100%;background:linear-gradient(90deg,#ff4fb0,#ffd34d);border-radius:6px}
-#gtag{display:flex;flex-direction:column;font-family:system-ui;font-size:clamp(10px,3.2vh,13px);font-weight:bold}.pro{color:#7dff9a}.con{color:#ff8a8a}
+#gtag{display:flex;flex-direction:column;font-family:system-ui;font-size:clamp(10px,3.2vh,13px);font-weight:bold}.pro{color:#7dff9a}.blast{color:#9ad8ff;font-weight:normal}.con{color:#ff8a8a}
 #grace{font:inherit;font-size:clamp(18px,7vh,28px);padding:clamp(4px,2vh,10px) 10px;border-radius:12px;border:3px solid #fff;background:#e33;color:#fff;box-shadow:0 4px 0 #811;cursor:pointer;touch-action:none}
 #gdots{position:absolute;left:28%;transform:translateX(-50%);bottom:calc(10px + var(--sb));display:flex;gap:6px}#gdots b{width:9px;height:9px;border-radius:50%;background:#fff5}#gdots b.on{background:#ffd34d}
 #ghint{position:absolute;left:28%;transform:translateX(-50%);bottom:calc(24px + var(--sb));font-family:system-ui;font-size:11px;opacity:.7;white-space:nowrap}
@@ -132,6 +132,7 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
 #csub{font-size:clamp(12px,3.8vh,19px)}#csub .gain{color:#7aff8a;font-weight:900;margin-left:6px}
 #cbody{display:flex;align-items:center;gap:clamp(8px,3vw,30px);min-height:0}
 #ctrophy{position:static;display:block;flex:none;width:clamp(90px,36vh,220px);height:clamp(90px,36vh,220px);animation:bob 1.2s ease-in-out infinite alternate}
+#ctrophy3d{position:static;display:block;flex:none;width:clamp(130px,50vh,320px);height:clamp(100px,40vh,250px)}
 #ctable table{border-collapse:separate;border-spacing:0 clamp(2px,.7vh,5px);font-size:clamp(12px,3.6vh,18px)}
 #ctable td{background:rgba(10,10,40,.65);padding:clamp(2px,.8vh,6px) clamp(8px,1.6vw,16px);text-align:left}#ctable td:first-child{border-radius:10px 0 0 10px}#ctable td:last-child{border-radius:0 10px 10px 0}
 #ctable .rk{font:900 1.2em 'Arial Black',Impact;color:#ffd34d;text-align:center}#ctable .nm small{display:block;font-size:.65em;opacity:.7}#ctable .pl{color:#7aff8a;font-weight:900}#ctable .pt{font:900 1.15em 'Arial Black',Impact;text-align:right}#ctable .pt small{font-size:.5em;margin-left:3px;opacity:.7}
@@ -140,6 +141,14 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
 #cbtns button{font:inherit;font-weight:bold;font-size:clamp(14px,5vh,22px);min-height:clamp(42px,12vh,60px);padding:0 clamp(14px,2.4vw,28px);border-radius:14px;border:3px solid #fff;color:#fff;cursor:pointer;touch-action:manipulation;background:#7b3fc4;box-shadow:0 4px 0 #3a1a6a}
 #cbtns #cnext{background:#e33;box-shadow:0 4px 0 #811}#cbtns button:focus-visible{outline:3px solid #ffd34d;outline-offset:3px}
 #ckeys{font-size:11px;opacity:.6}
+#gate{display:none;position:fixed;inset:0;z-index:6;flex-direction:column;align-items:center;justify-content:center;gap:clamp(4px,1.6vh,12px);text-align:center;color:#fff;cursor:pointer;touch-action:manipulation;background:radial-gradient(ellipse at 50% 60%,rgba(20,10,50,.25),rgba(10,5,30,.75));font-family:'Arial Black',Impact,system-ui,sans-serif}
+#gcup{font-size:clamp(12px,4vh,20px);color:#ffd34d}#gtrack{font:italic 900 clamp(26px,10vh,64px)/1 'Arial Black',Impact;color:#fff;text-shadow:4px 4px 0 #c03,0 0 24px #ff4fd8}
+#gtap{font-size:clamp(15px,5.5vh,28px);padding:clamp(6px,2vh,14px) clamp(16px,4vw,36px);border:3px solid #fff;border-radius:16px;background:#e33;box-shadow:0 5px 0 #811;animation:gpulse .9s ease-in-out infinite alternate}@keyframes gpulse{to{transform:scale(1.06)}}
+#gsub{font-family:system-ui;font-size:clamp(10px,3vh,14px);opacity:.75}
+#tdrow{display:flex;align-items:center;gap:clamp(4px,1vw,10px);flex-wrap:wrap;justify-content:center}#tdiff{display:flex;gap:4px;background:rgba(0,0,0,.3);border-radius:999px;padding:3px}
+.tdf{font:inherit;font-size:clamp(10px,3.2vh,14px);padding:clamp(3px,1.1vh,6px) clamp(8px,1.4vw,14px);border-radius:999px;border:2px solid transparent;background:transparent;color:#fffc;cursor:pointer;touch-action:manipulation;white-space:nowrap;min-height:30px}
+.tdf.on{background:#fff;color:#2a0a4a;border-color:#ffd34d;box-shadow:0 0 10px #ffd34d88}#tdtip{font-family:system-ui;font-size:clamp(9px,2.6vh,12px);opacity:.75}
+#clevel{font-size:clamp(10px,3vh,14px);color:#fff;opacity:.85;letter-spacing:1px;font-weight:bold}
 #tback{background:#7b3fc4;box-shadow:0 4px 0 #3a1a6a;font-size:clamp(12px,4.4vh,18px)}
 #thint{font-family:system-ui;font-size:11px;opacity:.7}
 @media (max-aspect-ratio:1/1){#tcards{flex-direction:column}.tcard{max-width:none;flex-direction:row}.tcard canvas{width:40%;flex:none}.tcup{font-size:11px;padding:4px 8px}#tcups{flex-wrap:wrap;justify-content:center}}
@@ -166,16 +175,17 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
  <p><b id="mtrack">Brass City</b> · 3 laps · 8 instrument cars · 4 cups</p>
  <p><span class="touchonly"><b>Steer</b> with ◀ ▶ and hold <b>GAS</b>. Flips and your car's special move fire automatically when the meter fills.</span><span class="kbdonly"><b>Keyboard:</b> ↑ gas, ↓ brake, ← → steer, <b>Shift</b> drift (sparks go <span style="color:#5af">blue</span> then <span style="color:#f90">orange</span>; let go to boost), <b>Space</b> special move / flip in the air.</span> Find Backbeat Alley; dodge stands, timpani and the giant metronome. Style fills the <b>Band Meter</b>.</p></div>
  <div class="col-r">
- <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v22 · © 2026 Backline Vintage</p></div>
+ <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v23 · © 2026 Backline Vintage</p></div>
 </div></div>
 <div id="garage"><div id="gtitle">CHOOSE YOUR RIDE</div>
  <button id="gprev" class="garr">◀</button><button id="gnext" class="garr">▶</button>
  <div id="gpanel"><div id="gname"></div><div id="gfam"></div><div id="gstats"></div><div id="gtag"></div><button id="grace">RACE!</button></div>
  <div id="ghint" class="kbdonly">← → browse · Enter race · Esc back</div><div id="gdots"></div>
 </div>
-<div id="tsel"><div id="ttitle">CHOOSE YOUR TRACK</div><div id="tcups"></div><div id="tcards"></div>
- <div id="tbar"><button id="tback">◀ CAR</button><button id="trace">SINGLE RACE</button><button id="tcupgo">🏆 CUP</button></div><div id="thint" class="kbdonly">← → track · ↑ ↓ cup · Enter single race · C cup (3 races) · Esc back</div></div>
-<div id="cupst"><canvas id="cconf"></canvas><div id="ctitle"></div><div id="csub"></div><div id="cbody"><canvas id="ctrophy"></canvas><div id="ctable"></div></div><div id="cbtns"><button id="cnext">NEXT RACE</button><button id="cextra">TRACK SELECT</button><button id="cmenu">MENU</button></div><div id="ckeys" class="kbdonly">Enter = continue · Esc = menu</div></div>
+<div id="tsel"><div id="ttitle">CHOOSE YOUR TRACK</div><div id="tcups"></div><div id="tdrow"><div id="tdiff"></div><div id="tdtip"></div></div><div id="tcards"></div>
+ <div id="tbar"><button id="tback">◀ CAR</button><button id="trace">SINGLE RACE</button><button id="tcupgo">🏆 CUP</button></div><div id="thint" class="kbdonly">← → track · ↑ ↓ cup · Enter single race · C cup (3 races) · 1 2 3 level · Esc back</div></div>
+<div id="cupst"><canvas id="cconf"></canvas><div id="clevel"></div><div id="ctitle"></div><div id="csub"></div><div id="cbody"><canvas id="ctrophy"></canvas><div id="ctable"></div></div><div id="cbtns"><button id="cnext">NEXT RACE</button><button id="cextra">TRACK SELECT</button><button id="cmenu">MENU</button></div><div id="ckeys" class="kbdonly">Enter = continue · Esc = menu</div></div>
+<div id="gate"><div id="gcup"></div><div id="gtrack"></div><div id="gtap"><span class="touchonly">TAP TO START YOUR ENGINES!</span><span class="kbdonly">PRESS ANY KEY OR CLICK TO START YOUR ENGINES!</span></div><div id="gsub">🔊 sound on for the countdown</div></div>
 <div id="rot">Turn your device sideways 🔄</div>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 <script type="module" src="game.js"></script>

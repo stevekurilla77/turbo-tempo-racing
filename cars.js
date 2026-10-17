@@ -58,15 +58,24 @@ export const LOOKS = {
   horn: { girl: 1, skin: 0x8a5634, hair: 0x1c120c, style: 'puffs', tie: 0xffd040 },
   xylo: { girl: 0, skin: 0xb07850, hair: 0x2a6cff, style: 'spiky' },
 };
-let curLook = LOOKS.trombone, curBeams = new THREE.Group();
+let curLook = LOOKS.trombone, curBeams = new THREE.Group(), curPose = 'sit', curType = 'trombone'; const DRV = {};
 const matte = c => mc['m' + c] || (mc['m' + c] = std(c, 0, .65, { envMapIntensity: .3 }));
 const ds = m => m.userData.ds || (m.userData.ds = Object.assign(m.clone(), { side: THREE.DoubleSide }));
 const shellG = (a, b, c, d) => G(`sh${a},${b},${c},${d}`, () => new THREE.SphereGeometry(.26, 18, 12, a, b, c, d));
 function driver(st, x, y, z, helm, visor) {
-  const L = curLook, d = new THREE.Group(); d.position.set(x, y + .06, z); d.scale.setScalar(1.45); st.add(d);
+  if (curPose === 'none') { DRV[curType] = [helm, visor]; return; } // v23 podium car: the driver has hopped out
+  const L = curLook, d = new THREE.Group(); d.position.set(x, y + .06, z); d.scale.setScalar(1.45); st.add(d); DRV[curType] = [helm, visor];
   const skin = matte(L.skin), hair = matte(L.hair), dark = basic(0x1a1010), white = basic(0xffffff);
   P(d, cyl(.17, .24, .4, 12), helm, 0, -.36, -.04); P(d, cyl(.08, .08, .12, 10), skin, 0, -.17, 0); // suit + neck
-  for (const s of [-1, 1]) { P(d, cyl(.055, .05, .36, 8), helm, s * .19, -.31, .16, 2.08); P(d, sph(.055, 8, 6), skin, s * .18, -.4, .32); // arms + hands
+  if (curPose === 'stand') { // v23 trophy ceremony: standing, both arms up holding the cup over the helmet
+    P(d, cyl(.24, .2, .14, 12), helm, 0, -.6, -.04);                                                         // hips
+    for (const s of [-1, 1]) { P(d, cyl(.08, .07, .5, 8), helm, s * .1, -.86, -.04); P(d, box(.12, .09, .22), M.black, s * .1, -1.13, .02); } // legs + shoes
+    const lift = new THREE.Group(); d.add(lift); d.userData.lift = lift; const up = new THREE.Vector3(0, 1, 0);
+    for (const s of [-1, 1]) { const a = new THREE.Vector3(s * .19, -.24, -.02), b = new THREE.Vector3(s * .15, .5, .16), v = b.clone().sub(a), len = v.length();
+      const arm = P(lift, cyl(.055, .05, len, 8), helm, ...a.clone().add(b).multiplyScalar(.5).toArray()); arm.quaternion.setFromUnitVectors(up, v.normalize());
+      P(lift, sph(.06, 8, 6), skin, b.x, b.y, b.z); }
+    d.userData.hands = new THREE.Vector3(0, .55, .16); }
+  else for (const s of [-1, 1]) { P(d, cyl(.055, .05, .36, 8), helm, s * .19, -.31, .16, 2.08); P(d, sph(.055, 8, 6), skin, s * .18, -.4, .32); // arms + hands
     P(d, cyl(.075, .07, .38, 8), helm, s * .2, -.6, .15, PI / 2); P(d, cyl(.065, .06, .3, 8), helm, s * .21, -.74, .33); P(d, box(.11, .08, .2), M.black, s * .21, -.9, .38); } // legs + shoes
   P(d, sph(.21, 18, 14), skin, 0, 0, .035);                                                   // head
   const H = ds(helm), front = PI / 2, gap = 1.1;                                            // open-face helmet: full cap + back/side shell
@@ -282,5 +291,21 @@ const BUILD = {
     return finish(g, st, U, [1.5, 2.9]);
   },
 };
-export function buildCar(type) { curLook = LOOKS[type] || LOOKS.trombone; return BUILD[type](); }
+export function buildCar(type, empty = false) { curLook = LOOKS[type] || LOOKS.trombone; curType = type; if (empty) curPose = 'none'; try { return BUILD[type](); } finally { curPose = 'sit'; } }
 export const CAR_TYPES = Object.keys(BUILD);
+
+// v23 trophy ceremony: the car's own driver (same look, suit + helmet colours) standing with both arms up holding a cup.
+// metal: 0 gold, 1 silver, 2 bronze, 3+ a purple "band star" cup
+export function buildTrophyDriver(type, metal = 0) {
+  if (!DRV[type]) buildCar(type); curLook = LOOKS[type] || LOOKS.trombone; curType = type; curPose = 'stand';
+  const root = new THREE.Group(); try { driver(root, 0, 0, 0, ...DRV[type]); } finally { curPose = 'sit'; }
+  const d = root.children[0], lift = d.userData.lift, hands = d.userData.hands;
+  const col = [0xffc83a, 0xdfe6f0, 0xd08a4a, 0xc070ff][Math.min(metal, 3)], mat = std(col, 1, .18, { emissive: [0x3a2400, 0x1a1e26, 0x2a1000, 0x2a0040][Math.min(metal, 3)], envMapIntensity: 1.5 });
+  const cup = new THREE.Group(); cup.position.copy(hands); lift.add(cup);
+  const prof = [[0, 0], [.16, 0], [.16, .04], [.07, .07], [.045, .12], [.045, .2], [.09, .24], [.2, .32], [.25, .45], [.26, .56], [.24, .565]].map(([x, y]) => new THREE.Vector2(x, y));
+  P(cup, new THREE.LatheGeometry(prof, 24), ds(mat), 0, .02, 0);
+  P(cup, box(.36, .08, .3), M.wood, 0, -.02, 0);                                                         // little plinth the hands grip
+  for (const s of [-1, 1]) P(cup, tor(.1, .025, PI, 6, 12), mat, s * .25, .42, 0, 0, 0, -s * PI / 2);      // handles
+  P(cup, new THREE.CircleGeometry(.07, 5), basic(0xfff6c0), 0, .42, .245);                                // star badge
+  root.userData = { lift, body: d, cup }; return root;
+}

@@ -1,3 +1,4 @@
+import { createJazz } from './jazz.js';
 // v21 procedural soundtrack: one ORIGINAL theme per course, built from layered patterns (drums, bass, comping, arps, melodies).
 // Layers fade in with the "band" meter (sections 1..5). All melodies/progressions written for this game.
 const NOTE = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
@@ -42,8 +43,8 @@ export const THEMES = {
     { k: 'mel', v: 'steel', vol: .1, sec: 3, m: 'A5 . C6 A5 . F5 G5 A5 | Bb5 . D6 Bb5 . F5 . - | G5 A5 Bb5 . E5 . G5 . | F5 . A5 . C6 . - - | D6 . A5 F5 . A5 D6 . | Bb5 . G5 D5 . G5 Bb5 . | C6 Bb5 A5 G5 E5 . C5 E5 | F5 . . A5 C6 . - -' },
     { k: 'mel', v: 'flute', vol: .05, sec: 4, m: 'F6 . . . E6 . . . | D6 . . . F6 . . . | E6 . . . G6 . . . | F6 . . . . . . . | F6 . . . D6 . . . | D6 . . . Bb5 . . . | C6 . . . E6 . . . | F6 . . . . . . .' },
     { k: 'mel', v: 'steel', vol: .05, sec: 5, oct: -12, same: 1 } ] },
-  // Bayou Jazz Swamp: swung New Orleans second-line in F — clarinet lead, tenor-sax riffs, tuba bounce, piano comps.
-  bayou: { name: 'Second Line Swamp Stomp', bpm: 130, swing8: .3, chords: ['F7', 'Bb7', 'F7', 'F7', 'Bb7', 'Bb7', 'F7', 'C7'], layers: [
+  // Bayou Jazz Swamp: v23 jazz.js plays an original Dixieland small-band arrangement (layers below are only a fallback).
+  bayou: { name: 'Gator Gumbo Strut', jazz: true, bpm: 172, swing8: .3, chords: ['F7', 'Bb7', 'F7', 'F7', 'Bb7', 'Bb7', 'F7', 'C7'], layers: [
     { k: 'drum', v: 'kick', p: 'x.....x...x.....', sec: 1 }, { k: 'drum', v: 'snare', p: 'x..o.ox.o.x..o.o', fill: 'x.ox.ox.rrrrx.x.', sec: 1 }, { k: 'drum', v: 'ride', p: 'x...x.x.x...x.x.', sec: 1 },
     { k: 'bass', v: 'tuba', p: 'R...5..8R...b.5.', vol: .21, sec: 1 },
     { k: 'chord', v: 'piano', p: '..x....x..x.....', oct: 12, dur: 1, vol: .04, sec: 2 },
@@ -61,7 +62,8 @@ export const THEMES = {
 };
 for (const th of Object.values(THEMES)) { th.ch = th.chords.map(chord); th.layers.forEach((L, i) => { if (L.k === 'mel') L.ev = L.same ? th.layers.find(x => x.k === 'mel' && x.m).ev : mel(L.m); }); }
 
-export function createMusic(AC, out) {
+// v23: shared synth voices + drums (used by the track music and by the countdown jingles / sfx on their own bus)
+export function createVoices(AC, out) {
   let noiseBuf = null; const noise = () => { if (!noiseBuf) { noiseBuf = AC.createBuffer(1, AC.sampleRate * .5, AC.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; } return noiseBuf; };
   const mf = m => 440 * Math.pow(2, (m - 69) / 12);
   const env = (t, a, peak, d, end = .0005) => { const g = AC.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(Math.max(end, 1e-4), t + a + d); g.connect(out); return g; };
@@ -98,16 +100,21 @@ export function createMusic(AC, out) {
     if (!P) return; const g = env(t, .001, P[2] * vel, P[3]); const s = AC.createBufferSource(); s.buffer = noise(); s.connect(filt(P[0], P[1], kind === 'rim' ? 6 : 1, g)); s.start(t, Math.random() * .2); s.stop(t + P[3] + .05);
     if (kind === 'snare') osc('triangle', 190, t, t + .08, env(t, .001, .2 * vel, .06));
   };
-  let theme = THEMES.brass, step = 0, nextT = 0;
+  return { V, D, env, osc, filt, noise, mf };
+}
+export function createMusic(AC, out) {
+  const { V, D, mf } = createVoices(AC, out);
+  let theme = THEMES.brass, step = 0, nextT = 0, jazz = null;
   const chordAt = (bar) => theme.ch[bar % theme.ch.length];
   function bassNote(c, ch, nextCh) { switch (ch) { case 'R': return c.root; case '3': return c.tones[1]; case '5': return c.root + 7; case '7': return c.tones[3] != null ? c.tones[3] : c.root + 10; case 'b': return c.root + 10; case '8': return c.root + 12; case 'a': return nextCh.root - 1; default: return null; } }
   function stepDur(s, base) { if (theme.swing8) { const k = theme.swing8; return base * ((s % 4) < 2 ? 1 + k : 1 - k); } if (theme.swing16) { const k = theme.swing16; return base * (s % 2 ? 1 - k : 1 + k); } return base; }
   return {
     THEMES, get theme() { return theme; },
-    setTheme(id) { theme = THEMES[id] || THEMES.brass; step = 0; },
-    resync(t) { nextT = t; },
+    setTheme(id) { theme = THEMES[id] || THEMES.brass; step = 0; if (theme.jazz) { jazz = jazz || createJazz(AC, out); jazz.reset(); } },
+    resync(t) { nextT = t; if (jazz) jazz.resync(t); },
     // schedule everything up to `ahead` seconds; sections = 1..5 band layers; fast = tempo multiplier (final lap)
     tick(now, sections, fast = 1) { let n = 0; // returns 16th-steps scheduled
+      if (theme.jazz && jazz) return jazz.tick(now, sections, fast, theme.bpm);
       if (nextT < now - .2) nextT = now + .05;
       const base = 60 / (theme.bpm * fast) / 4;
       while (nextT < now + .15) { const bars = theme.ch.length, bar = Math.floor(step / 16) % bars, s = step % 16, c = chordAt(bar), nc = chordAt(bar + 1), t = nextT, fillBar = bar === bars - 1;
