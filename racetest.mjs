@@ -1,6 +1,6 @@
 import { chromium } from 'playwright';
 const TQ = process.env.TRK ? `track=${process.env.TRK}&` : '', PRE = process.env.PRE || 'shots/v20-';
-const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell';
 const b = await chromium.launch({ executablePath: EXE, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
 const base = process.argv[2] || 'http://127.0.0.1:8787/'; const mode = process.argv[3] || 'all';
 const errsOf = p => { const e = []; p.on('pageerror', x => e.push('pageerror ' + x)); p.on('console', m => (m.type() === 'error' || m.type() === 'warning') && e.push(m.type() + ' ' + m.text())); return e; };

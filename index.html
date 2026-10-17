@@ -122,6 +122,24 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
 #tbar{display:flex;gap:12px;align-items:center}
 #trace,#tback{font:inherit;font-size:clamp(16px,6vh,26px);padding:clamp(4px,1.6vh,9px) clamp(16px,4vw,34px);border-radius:12px;border:3px solid #fff;color:#fff;cursor:pointer;touch-action:manipulation}
 #trace{background:#e33;box-shadow:0 4px 0 #811}#trace:disabled{background:#555;box-shadow:0 4px 0 #222;opacity:.7}
+#tcupgo{font:inherit;font-size:clamp(14px,5vh,22px);padding:clamp(3px,1.2vh,7px) clamp(14px,3vw,28px);border-radius:12px;border:3px solid #fff;color:#1a0a2a;background:var(--c,#ffc83a);box-shadow:0 4px 0 #0006;cursor:pointer;touch-action:manipulation;line-height:1.05}
+#tcupgo small{display:block;font-family:system-ui;font-size:clamp(9px,2.6vh,12px);font-weight:bold;opacity:.8}#tcupgo:disabled{background:#555;color:#ccc;opacity:.7}
+#cupst{display:none;position:fixed;inset:0;z-index:6;flex-direction:column;align-items:center;justify-content:center;gap:clamp(4px,1.4vh,10px);text-align:center;color:#fff;font-family:system-ui,sans-serif;box-sizing:border-box;padding:calc(6px + var(--st)) calc(10px + var(--sr)) calc(6px + var(--sb)) calc(10px + var(--sl));background:radial-gradient(ellipse at 50% 35%,rgba(70,30,130,.92),rgba(10,5,30,.96))}
+#cupst #cconf{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}#cupst>*:not(#cconf){position:relative;z-index:1}
+#ctitle{font:italic 900 clamp(20px,7.5vh,44px)/1.05 'Arial Black',Impact,sans-serif;color:#ffd34d;text-shadow:3px 3px 0 #c03;letter-spacing:.02em}
+#cupst.trophy #ctitle{font-size:clamp(30px,12vh,80px);transform:skewX(-10deg);background:linear-gradient(180deg,#fff 0%,#fff6a0 30%,#ffb000 55%,#ff3d00 100%);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-stroke:2px #2a0033;text-shadow:none;filter:drop-shadow(4px 4px 0 #2a0033)}
+#cupst.trophy.p2 #ctitle,#cupst.trophy.p3 #ctitle{background-image:linear-gradient(180deg,#fff 0%,#d8f4ff 35%,#7ec8ff 60%,#3a6bff 100%)}#cupst.trophy.p4 #ctitle{background-image:linear-gradient(180deg,#fff 0%,#e0ffd0 35%,#7be86a 60%,#18a058 100%)}
+#csub{font-size:clamp(12px,3.8vh,19px)}#csub .gain{color:#7aff8a;font-weight:900;margin-left:6px}
+#cbody{display:flex;align-items:center;gap:clamp(8px,3vw,30px);min-height:0}
+#ctrophy{position:static;display:block;flex:none;width:clamp(90px,36vh,220px);height:clamp(90px,36vh,220px);animation:bob 1.2s ease-in-out infinite alternate}
+#ctable table{border-collapse:separate;border-spacing:0 clamp(2px,.7vh,5px);font-size:clamp(12px,3.6vh,18px)}
+#ctable td{background:rgba(10,10,40,.65);padding:clamp(2px,.8vh,6px) clamp(8px,1.6vw,16px);text-align:left}#ctable td:first-child{border-radius:10px 0 0 10px}#ctable td:last-child{border-radius:0 10px 10px 0}
+#ctable .rk{font:900 1.2em 'Arial Black',Impact;color:#ffd34d;text-align:center}#ctable .nm small{display:block;font-size:.65em;opacity:.7}#ctable .pl{color:#7aff8a;font-weight:900}#ctable .pt{font:900 1.15em 'Arial Black',Impact;text-align:right}#ctable .pt small{font-size:.5em;margin-left:3px;opacity:.7}
+#ctable tr.me td{background:rgba(255,211,77,.28);box-shadow:inset 0 2px 0 #ffd34d,inset 0 -2px 0 #ffd34d}#ctable tr.me td:first-child{box-shadow:inset 2px 2px 0 #ffd34d,inset 0 -2px 0 #ffd34d}
+#cbtns{display:flex;gap:clamp(8px,1.6vw,16px);flex-wrap:wrap;justify-content:center}
+#cbtns button{font:inherit;font-weight:bold;font-size:clamp(14px,5vh,22px);min-height:clamp(42px,12vh,60px);padding:0 clamp(14px,2.4vw,28px);border-radius:14px;border:3px solid #fff;color:#fff;cursor:pointer;touch-action:manipulation;background:#7b3fc4;box-shadow:0 4px 0 #3a1a6a}
+#cbtns #cnext{background:#e33;box-shadow:0 4px 0 #811}#cbtns button:focus-visible{outline:3px solid #ffd34d;outline-offset:3px}
+#ckeys{font-size:11px;opacity:.6}
 #tback{background:#7b3fc4;box-shadow:0 4px 0 #3a1a6a;font-size:clamp(12px,4.4vh,18px)}
 #thint{font-family:system-ui;font-size:11px;opacity:.7}
 @media (max-aspect-ratio:1/1){#tcards{flex-direction:column}.tcard{max-width:none;flex-direction:row}.tcard canvas{width:40%;flex:none}.tcup{font-size:11px;padding:4px 8px}#tcups{flex-wrap:wrap;justify-content:center}}
@@ -148,7 +166,7 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
  <p><b id="mtrack">Brass City</b> · 3 laps · 8 instrument cars · 4 cups</p>
  <p><span class="touchonly"><b>Steer</b> with ◀ ▶ and hold <b>GAS</b>. Flips and your car's special move fire automatically when the meter fills.</span><span class="kbdonly"><b>Keyboard:</b> ↑ gas, ↓ brake, ← → steer, <b>Shift</b> drift (sparks go <span style="color:#5af">blue</span> then <span style="color:#f90">orange</span>; let go to boost), <b>Space</b> special move / flip in the air.</span> Find Backbeat Alley; dodge stands, timpani and the giant metronome. Style fills the <b>Band Meter</b>.</p></div>
  <div class="col-r">
- <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v20 · © 2026 Backline Vintage</p></div>
+ <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v21 · © 2026 Backline Vintage</p></div>
 </div></div>
 <div id="garage"><div id="gtitle">CHOOSE YOUR RIDE</div>
  <button id="gprev" class="garr">◀</button><button id="gnext" class="garr">▶</button>
@@ -156,7 +174,8 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
  <div id="ghint" class="kbdonly">← → browse · Enter race · Esc back</div><div id="gdots"></div>
 </div>
 <div id="tsel"><div id="ttitle">CHOOSE YOUR TRACK</div><div id="tcups"></div><div id="tcards"></div>
- <div id="tbar"><button id="tback">◀ CAR</button><button id="trace">RACE!</button></div><div id="thint" class="kbdonly">← → track · ↑ ↓ cup · Enter race · Esc back</div></div>
+ <div id="tbar"><button id="tback">◀ CAR</button><button id="trace">SINGLE RACE</button><button id="tcupgo">🏆 CUP</button></div><div id="thint" class="kbdonly">← → track · ↑ ↓ cup · Enter single race · C cup (3 races) · Esc back</div></div>
+<div id="cupst"><canvas id="cconf"></canvas><div id="ctitle"></div><div id="csub"></div><div id="cbody"><canvas id="ctrophy"></canvas><div id="ctable"></div></div><div id="cbtns"><button id="cnext">NEXT RACE</button><button id="cextra">TRACK SELECT</button><button id="cmenu">MENU</button></div><div id="ckeys" class="kbdonly">Enter = continue · Esc = menu</div></div>
 <div id="rot">Turn your device sideways 🔄</div>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 <script type="module" src="game.js"></script>

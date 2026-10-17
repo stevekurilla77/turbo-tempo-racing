@@ -1,6 +1,6 @@
 // v17: measure warp ramps (default trombone, autopilot): speed before ramp vs after landing, and time over each ramp section, warps on vs ?nowarp
 import { chromium } from 'playwright';
-const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell';
 const b = await chromium.launch({ executablePath: EXE, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const TQ = process.env.TRK ? `track=${process.env.TRK}&` : '';
 const base = process.argv[2] || 'http://127.0.0.1:8787/', runs = +(process.argv[3] || 1);

@@ -1,7 +1,7 @@
 // perf: draw calls / triangles / FPS while racing (autopilot), laptop + iPhone sizes. Headless SwiftShader = CPU rendering, so FPS is only useful as a before/after comparison.
 import { chromium } from 'playwright';
 const TQ = process.env.TRK ? `track=${process.env.TRK}&` : '', PRE = process.env.PRE || 'shots/v20-';
-const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell';
 const b = await chromium.launch({ executablePath: EXE, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const base = process.argv[2] || 'http://127.0.0.1:8787/', tag = process.argv[3] || '';
 for (const [name, opt] of [['laptop', { viewport: { width: 1280, height: 720 } }], ['iphone', { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 }]]) {

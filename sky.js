@@ -27,6 +27,7 @@ export function buildSky(scene, o) {
           g.fillStyle = sk.win; for (let wy = h - bh + 4; wy < h - 3; wy += 5) for (let wx = x + 2; wx < x + bw - 2; wx += 4) if (Math.random() < .18) g.fillRect(wx, wy, 1.5, 2); g.fillStyle = sk.col; }
         else if (sk.mesa) { /* mesas drawn below */ }
         x += bw + Math.random() * 6; }
+      if (sk.draw) { g.clearRect(0, 0, w, h); sk.draw(g, w, h); }
       if (sk.mesa) { g.clearRect(0, 0, w, h); g.fillStyle = sk.col; g.beginPath(); g.moveTo(0, h); let y = h - 30; for (let px = 0; px <= w; px += 16) { if (Math.random() < .12) y = h - 20 - Math.random() * 90; g.lineTo(px, y); g.lineTo(px + 16, y); } g.lineTo(w, h); g.fill(); } }, true);
     t.repeat.set(4, 1); const ring = new THREE.Mesh(new THREE.CylinderGeometry(760, 760, sk.height || 150, 64, 1, true), new THREE.MeshBasicMaterial({ map: t, transparent: true, side: THREE.BackSide, fog: false, depthWrite: false }));
     ring.position.y = (sk.height || 150) / 2 - 12; ring.renderOrder = -8; grp.add(ring); }

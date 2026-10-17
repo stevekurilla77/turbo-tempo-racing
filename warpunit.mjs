@@ -1,7 +1,7 @@
 // v17 controlled warp-ramp measurement: trombone placed 25 samples before each ramp at its top speed (43), no boosts, rivals parked far away.
 // Times the run from 25 samples before to 80 samples after the ramp lip, with the ramp active vs disabled (__tt.nowarp).
 import { chromium } from 'playwright';
-const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell';
 const b = await chromium.launch({ executablePath: EXE, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const base = process.argv[2] || 'http://127.0.0.1:8787/';
 const p = await b.newPage({ viewport: { width: 640, height: 360 } }); const e = []; p.on('pageerror', x => e.push(String(x)));

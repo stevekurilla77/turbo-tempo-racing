@@ -1,6 +1,6 @@
 // v19 scenery screenshots: two in-race city views + a sky view (laptop 1280x720)
 import { chromium } from 'playwright';
-const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell';
 const b = await chromium.launch({ executablePath: EXE, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const base = process.argv[2] || 'http://127.0.0.1:8787/', pre = process.argv[3] || 'shots/v19-';
 const p = await b.newPage({ viewport: { width: 1280, height: 720 } }); const e = []; p.on('pageerror', x => e.push(String(x))); p.on('console', m => m.type() === 'error' && e.push(m.text()));

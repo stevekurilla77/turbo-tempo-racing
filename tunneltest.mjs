@@ -1,8 +1,8 @@
 // v15 timed shortcut test: default car (trombone) on autopilot, with vs without Backbeat Alley
 import { chromium } from 'playwright';
-const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
+const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell';
 const b = await chromium.launch({ executablePath: EXE, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
-const TQ = process.env.TRK ? `track=${process.env.TRK}&` : '', [SA, SB] = (process.env.SEG || '215,370').split(',').map(Number);
+const TQ = (process.env.TRK ? `track=${process.env.TRK}&` : '') + (process.env.XQ || ''), [SA, SB] = (process.env.SEG || '215,370').split(',').map(Number);
 const base = process.argv[2] || 'http://127.0.0.1:8787/', runs = +(process.argv[3] || 1);
 async function run(alley) {
   const p = await b.newPage({ viewport: { width: 640, height: 360 } }); const e = []; p.on('pageerror', x => e.push(String(x)));
@@ -20,5 +20,8 @@ async function run(alley) {
   if (L.finish) lapT.push(+(L.finish - L.laps[L.laps.length - 1]).toFixed(2));
   await p.close(); return { alley, laps: lapT, seg: L.seg.map(x => +x.toFixed(2)), finish: +L.finish.toFixed(2), alleyStat: L.alleyStat, place: L.place, aiAlleyMax: L.aiAlley, errs: e };
 }
-for (let k = 0; k < runs; k++) for (const a of [1, 0]) console.log(JSON.stringify(await run(a)));
+const all = { 1: [], 0: [] }; for (let k = 0; k < runs; k++) for (const a of [1, 0]) { const r = await run(a); all[a].push(r); console.log(JSON.stringify(r)); }
+const med = a => { const s = [...a].sort((x, y) => x - y); return s.length ? +(s.length % 2 ? s[(s.length - 1) / 2] : (s[s.length / 2 - 1] + s[s.length / 2]) / 2).toFixed(2) : null; };
+const segs = a => all[a].flatMap(r => r.seg), laps = a => all[a].flatMap(r => r.laps.slice(1));
+console.log('SUMMARY', JSON.stringify({ segAlley: med(segs(1)), segRoad: med(segs(0)), segSave: +(med(segs(0)) - med(segs(1))).toFixed(2), lapAlley: med(laps(1)), lapRoad: med(laps(0)), lapSave: +(med(laps(0)) - med(laps(1))).toFixed(2), n: segs(1).length + '/' + segs(0).length }));
 await b.close();
