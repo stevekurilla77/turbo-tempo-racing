@@ -269,7 +269,7 @@ let CUP = null; try { const c = JSON.parse(sessionStorage.getItem('tt_cup') || '
 const DIFFS = { // v24 retune: Rehearsal = the v23 Concert tuning; Concert and Virtuoso are clearly tougher
   rehearsal: { id: 'rehearsal', name: 'Rehearsal', icon: '🎼', blast: .8, skill: [.93, .99], slop: 1, rubAhead: .07, rubBehind: .05, help: .04, meter: 1.3, lag: [.2, .7], warpMiss: .22, alleyP: .3, bumpy: .8 },
   concert: { id: 'concert', name: 'Concert', icon: '🎻', blast: 1.05, skill: [.985, 1.03], slop: .45, rubAhead: .03, rubBehind: .05, help: .01, meter: 1.1, lag: [.05, .3], warpMiss: .08, alleyP: .45, bumpy: .9 },
-  virtuoso: { id: 'virtuoso', name: 'Virtuoso', icon: '🎺', blast: 1.6, skill: [1.03, 1.075], slop: .15, rubAhead: .01, rubBehind: .05, help: 0, meter: 1, lag: [0, .1], warpMiss: .02, alleyP: .65, bumpy: 1 } };
+  virtuoso: { id: 'virtuoso', name: 'Virtuoso', icon: '🎺', blast: 1.6, skill: [1.05, 1.095], slop: .15, rubAhead: .01, rubBehind: .05, help: 0, meter: 1, lag: [0, .1], warpMiss: .02, alleyP: .65, bumpy: 1 } };
 const DIFF_ORDER = ['rehearsal', 'concert', 'virtuoso'];
 let DIFF = DIFFS[Q.get('diff')] || (CUP && DIFFS[CUP.diff]) || (() => { try { return DIFFS[localStorage.getItem('tt_diff')]; } catch (_) { return null; } })() || DIFFS.concert;
 function setDiff(id) { if (!DIFFS[id] || CUP) return; DIFF = DIFFS[id]; try { localStorage.setItem('tt_diff', id); } catch (_) {} }
@@ -497,6 +497,7 @@ window.__tt = Object.assign(window.__tt || {}, { scene, race, player, cars, stan
 window.__tt.sim = (dt) => sim(dt);
 Object.defineProperty(window.__tt, 'acState', { get: () => AC ? AC.state : 'none' });
 function startRace() {
+  releaseInputs('start');
   if (!(AUTOSTART && navigator.userActivation && !navigator.userActivation.isActive)) initAudio(); // autostart (tests) has no gesture
   setLineup(playerType); gridUp(); stands.forEach(restoreStand); $('garage').style.display = 'none'; $('hud').style.display = '';
   for (const k in race.stats) race.stats[k] = Array.isArray(race.stats[k]) ? [0, 0, 0] : 0;
@@ -521,15 +522,22 @@ $('go').addEventListener('click', e => { lockLandscape(); if (race.state === 'me
 const band = d => { race.band = Math.max(0, Math.min(1, race.band + d)); };
 
 // ---------- input ----------
-const keys = {}; const touch = { l: 0, r: 0, brake: 0, dash: 0, gas: 0, drift: 0 }; window.__tt.touch = touch;
+const keys = {}, keySeen = {}, keyRep = {}; // v24 stuck-key guard: last keydown/repeat time per key, and whether it has auto-repeated
+const kc = e => e.code || ({ Left: 'ArrowLeft', Right: 'ArrowRight', Up: 'ArrowUp', Down: 'ArrowDown', Esc: 'Escape' }[e.key] || e.key || '');
+const KEY_GUARD = !Q.has('nokeyguard');
+function releaseInputs(why) { for (const k in keys) keys[k] = 0; for (const k in keyRep) keyRep[k] = 0; for (const k of ['l', 'r', 'brake', 'gas', 'drift', 'dash', 'dashPress']) touch[k] = 0; window.__tt.inputResets = (window.__tt.inputResets || 0) + 1; window.__tt.lastReset = why; }
+// a key the browser says is held but which stopped auto-repeating (or whose keyup got swallowed, e.g. by a Cmd/Ctrl shortcut or a focus change) is released
+function keyWatchdog() { if (!KEY_GUARD) return; const now = performance.now(); for (const k in keys) if (keys[k] && now - (keySeen[k] || 0) > (keyRep[k] ? 550 : 1600)) { keys[k] = 0; keyRep[k] = 0; window.__tt.keyGuardReleases = (window.__tt.keyGuardReleases || 0) + 1; } }
+const touch = { l: 0, r: 0, brake: 0, dash: 0, gas: 0, drift: 0 }; window.__tt.touch = touch; window.__tt.keys = keys; window.__tt.releaseInputs = releaseInputs;
 addEventListener('keydown', e => { if (race.state === 'paused') { pauseKey(e); return; } if ((race.state === 'race' || race.state === 'count') && (e.code === 'Escape' || e.code === 'KeyP') && !e.repeat) { e.preventDefault(); pauseRace(); return; }
-  keys[e.code] = 1; if (e.code === 'Space') { touch.dashPress = 1; e.preventDefault(); } if (race.state === 'done' && cupUp()) { if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') { e.preventDefault(); cupPrimary(); } else if (e.code === 'Escape' || e.code === 'KeyM') cupMenu(); return; }
+  { const c = kc(e); if (e.metaKey && c.startsWith('Arrow')) { /* macOS never sends keyup for keys pressed while Cmd is down */ } else { keys[c] = 1; keySeen[c] = performance.now(); if (e.repeat) keyRep[c] = 1; } } if (e.code === 'Space') { touch.dashPress = 1; e.preventDefault(); } if (race.state === 'done' && cupUp()) { if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') { e.preventDefault(); cupPrimary(); } else if (e.code === 'Escape' || e.code === 'KeyM') cupMenu(); return; }
   if (race.state === 'done' && resultsUp()) { if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); resAction('again'); } else if (e.code === 'KeyC') resAction('change'); else if (e.code === 'Escape' || e.code === 'KeyM') resAction('menu'); return; }
   if (race.state === 'menu' && (e.code === 'Enter')) openGarage();
   else if (race.state === 'tsel') { if (e.code === 'ArrowLeft' || e.code === 'KeyA') pickTrack(-1); else if (e.code === 'ArrowRight' || e.code === 'KeyD') pickTrack(1); else if (e.code === 'ArrowUp' || e.code === 'KeyW') pickCup(-1); else if (e.code === 'ArrowDown' || e.code === 'KeyS') pickCup(1);
     else if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); raceFromTrackSelect(); } else if (e.code === 'KeyC') startCup(FLAT[tIdx].ci); else if (e.code === 'Digit1' || e.code === 'Digit2' || e.code === 'Digit3') { setDiff(DIFF_ORDER[+e.code.slice(5) - 1]); renderDiff(); sfx(659, .1, .1); } else if (e.code === 'Escape') { $('tsel').style.display = 'none'; openGarage(); } }
   else if (race.state === 'garage') { if (e.code === 'ArrowLeft' || e.code === 'KeyA') pickGarage(-1); else if (e.code === 'ArrowRight' || e.code === 'KeyD') pickGarage(1); else if (e.code === 'Enter' || e.code === 'Space') raceFromGarage(); else if (e.code === 'Escape') { race.state = 'menu'; $('garage').style.display = 'none'; $('overlay').style.display = 'flex'; } } });
-addEventListener('keyup', e => { keys[e.code] = 0; });
+addEventListener('keyup', e => { const c = kc(e); keys[c] = 0; keyRep[c] = 0; if (e.code !== c) keys[e.code] = 0; if (e.key === 'Meta' || e.key === 'OS') releaseInputs('meta-up'); }, true);
+for (const [tgt, ev] of [[window, 'blur'], [window, 'pagehide'], [window, 'contextmenu'], [document, 'visibilitychange']]) tgt.addEventListener(ev, () => releaseInputs(ev), true);
 function holdBtn(id, k) { const el = $(id), ids = new Set();
   const upd = () => { touch[k] = ids.size ? 1 : 0; el.classList.toggle('on', ids.size > 0); };
   el.addEventListener('pointerdown', e => { e.preventDefault(); ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (_) {} if (k === 'dash') touch.dashPress = 1; initAudio(); upd(); });
@@ -537,7 +545,6 @@ function holdBtn(id, k) { const el = $(id), ids = new Set();
   el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
   el.addEventListener('contextmenu', e => e.preventDefault()); }
 holdBtn('bl', 'l'); holdBtn('br', 'r'); holdBtn('bbrake', 'brake'); holdBtn('bdash', 'dash'); holdBtn('bgas', 'gas'); holdBtn('bdrift', 'drift');
-addEventListener('blur', () => { for (const k in keys) keys[k] = 0; });
 
 // ---------- car select (garage): 3D turntable preview + stats ----------
 const garageScene = new THREE.Scene(); garageScene.background = new THREE.Color(0x1c0b3a); garageScene.fog = new THREE.Fog(0x1c0b3a, 18, 45);
@@ -998,12 +1005,12 @@ function resultsUp() { return $('results').style.display === 'flex'; }
 let pauseSel = 0, pauseConf = false, pauseT = 0;
 const pauseBtns = () => pauseConf ? ['pyes', 'pno'] : ['presume', 'prestart', 'pquit'];
 function pauseRender() { $('pmain').style.display = pauseConf ? 'none' : 'flex'; $('pconf').style.display = pauseConf ? 'flex' : 'none'; pauseBtns().forEach((id, i) => $(id).classList.toggle('sel', i === pauseSel)); }
-function pauseRace() { if (race.state !== 'race' && race.state !== 'count') return; race.prevState = race.state; race.state = 'paused'; for (const k in keys) keys[k] = 0; for (const k in touch) touch[k] = 0;
+function pauseRace() { if (race.state !== 'race' && race.state !== 'count') return; race.prevState = race.state; race.state = 'paused'; releaseInputs('pause');
   if (AC && AC.state === 'running' && AC.suspend) AC.suspend().catch(() => {}); pauseConf = false; pauseSel = 0; pauseT = performance.now();
   $('pinfo').textContent = `${TRK.name}${CUP ? ` · ${CUP.def.icon} ${CUP.def.name} race ${CUP.i + 1} of ${CUP.def.tracks.length}` : ''} · ${DIFF.icon} ${DIFF.name}`;
   $('pqsub').textContent = CUP ? `Quitting leaves the ${CUP.def.name} (your cup points are lost).` : 'This race will end and you go back to track select.';
   pauseRender(); $('pausem').style.display = 'flex'; window.__tt.pauses = (window.__tt.pauses || 0) + 1; }
-function resumeRace() { if (race.state !== 'paused') return; $('pausem').style.display = 'none'; race.state = race.prevState || 'race'; last = performance.now(); acc = 0; initAudio(); }
+function resumeRace() { if (race.state !== 'paused') return; releaseInputs('resume'); $('pausem').style.display = 'none'; race.state = race.prevState || 'race'; last = performance.now(); acc = 0; initAudio(); }
 // drop every sound already scheduled for this race (jingle, music lookahead, SFX) by swapping in fresh buses
 function flushRaceAudio() { if (!AC) return; try { if (RSFX) RSFX.ambientStop(); } catch (_) {} RSFX = null;
   for (const [old, v] of [[musicGain, .5], [sfxBus, .6]]) { try { old.disconnect(); } catch (_) {} }
@@ -1014,7 +1021,7 @@ function pauseAct(id) { if (race.state !== 'paused' || performance.now() - pause
   else if (id === 'pquit') { pauseConf = true; pauseSel = 1; pauseRender(); }
   else if (id === 'pno') { pauseConf = false; pauseSel = 2; pauseRender(); }
   else if (id === 'pyes') quitRace(); }
-function quitRace() { $('pausem').style.display = 'none'; initAudio(); flushRaceAudio(); for (const k in touch) touch[k] = 0; hideResults();
+function quitRace() { $('pausem').style.display = 'none'; initAudio(); flushRaceAudio(); releaseInputs('quit'); hideResults();
   Object.assign(race, { state: 'menu', results: null, fastMusic: false, musicArmed: false, countdown: 0 }); $('finishfx').style.display = 'none'; $('msg').textContent = ''; $('hud').style.display = 'none'; window.__tt.quits = (window.__tt.quits || 0) + 1;
   if (CUP) { cupSave(null); CUP = null; DIFF = DIFFS[(() => { try { return localStorage.getItem('tt_diff'); } catch (_) { return null; } })()] || DIFF; $('hud').style.display = ''; $('overlay').style.display = 'flex'; } // cup: back to the main menu
   else openTrackSelect(); }
@@ -1151,7 +1158,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(.1, (now - last) / 1000) * TIMESCALE; last = now; acc += dt;
   try {
-    if (race.state === 'paused') acc = 0; else while (acc > 1 / 60) { sim(1 / 60); acc -= 1 / 60; }
+    keyWatchdog(); if (race.state === 'paused') acc = 0; else while (acc > 1 / 60) { sim(1 / 60); acc -= 1 / 60; }
     camDt = dt; CITY.update(dt, performance.now() / 1000); if (ALLEY.anim) ALLEY.anim(dt); schedMusic(); if (race.state === 'garage') { hud(); renderGarage(dt); } else { syncMeshes(); hud(); }
     if (flashT > 0) { flashT -= dt / TIMESCALE; if (flashT <= 0) $('msg').textContent = ''; }
     if (toastT > 0) { toastT -= dt / TIMESCALE; if (toastT <= 0) $('toast').style.display = 'none'; }
