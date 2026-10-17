@@ -13,7 +13,7 @@ const finalShot = async (p, path) => { await p.evaluate(() => { __tt.finalLap();
   await p.screenshot({ path }); await p.evaluate(() => document.getAnimations().forEach(a => a.play())); return info; };
 const mmOverlap = p => p.evaluate(() => { const tst = document.getElementById('toast'), was = [tst.style.display, tst.textContent]; tst.style.display = 'block'; tst.textContent = 'Reese: Bass Blast!';
   const R = el => el.getBoundingClientRect(), ov = (a, b) => !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
-  const vis = [...document.querySelectorAll('#hud .btn, #hud .box, #mmap')].filter(el => getComputedStyle(el).display !== 'none' && R(el).width), pairs = [];
+  const vis = [...document.querySelectorAll('#hud .btn, #hud .box, #mmap, #bpause')].filter(el => getComputedStyle(el).display !== 'none' && R(el).width), pairs = [];
   for (let i = 0; i < vis.length; i++) for (let j = i + 1; j < vis.length; j++) if (ov(R(vis[i]), R(vis[j]))) pairs.push(vis[i].id + '/' + vis[j].id);
   const offscreen = vis.filter(el => { const r = R(el); return r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight; }).map(el => el.id);
   [tst.style.display, tst.textContent] = was;
@@ -48,7 +48,7 @@ if (mode === 'all' || mode === 'laptop') { // keyboard: menu -> garage -> pick 3
 if (mode === 'all' || mode === 'iphone') { // touch: tap START -> garage -> next -> RACE; drive with on-screen touch state only (gas + ◀ ▶)
   const ctx = await b.newContext({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true, deviceScaleFactor: 2 });
   const p = await ctx.newPage(); const e = errsOf(p);
-  await p.goto(base + '?' + TQ + 'speed=3&cb=' + Date.now()); await p.waitForTimeout(1200);
+  await p.goto(base + '?' + TQ + 'speed=1&cb=' + Date.now()); await p.waitForTimeout(1200);
   await p.screenshot({ path: `${PRE}iphone-title.png` });
   await p.tap('#go', { force: true }); await p.waitForTimeout(600);
   await p.tap('#gnext', { force: true }); await p.waitForTimeout(400); await p.tap('#gnext', { force: true }); await p.waitForTimeout(700);

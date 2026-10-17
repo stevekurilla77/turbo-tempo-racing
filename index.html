@@ -10,6 +10,13 @@ canvas{display:block;position:fixed;left:0;top:0;width:100vw;height:100vh;height
 .box{position:absolute;background:rgba(10,10,40,.45);border:1px solid rgba(255,211,77,.7);border-radius:6px;padding:2px 7px;text-shadow:1px 1px 0 #000;font-size:12px;line-height:1.25}
 #place{top:calc(6px + var(--st));left:calc(12px + var(--mmw) + var(--sl));font-size:18px;color:#ffd34d}
 #lap{top:calc(6px + var(--st));right:calc(6px + var(--sr));text-align:right}
+#bpause{position:absolute;pointer-events:auto;top:calc(6px + var(--st));right:calc(104px + var(--sr));width:40px;height:34px;border-radius:9px;border:2px solid rgba(255,211,77,.85);background:rgba(10,10,40,.55);color:#fff;font:bold 13px system-ui;letter-spacing:-1px;cursor:pointer;touch-action:manipulation;padding:0}
+#pausem{display:none;position:fixed;inset:0;z-index:7;align-items:center;justify-content:center;background:rgba(10,5,30,.62);font-family:system-ui,sans-serif;color:#fff}
+#pbox{display:flex;flex-direction:column;align-items:center;gap:clamp(6px,2vh,12px);padding:clamp(10px,3vh,22px) clamp(18px,4vw,40px);border-radius:18px;background:rgba(40,15,80,.92);border:3px solid #ffd34d;box-shadow:0 8px 0 #0008;min-width:min(78vw,300px)}
+#ptitle{font:italic 900 clamp(24px,8vh,44px)/1 'Arial Black',Impact,sans-serif;color:#ffd34d;text-shadow:3px 3px 0 #c03}#pinfo,#pqsub{font-size:clamp(11px,3.2vh,14px);opacity:.85;text-align:center}
+#pmain,#pconf{display:flex;flex-direction:column;gap:clamp(5px,1.6vh,10px);width:100%;align-items:stretch}#pconf{display:none}.prow{display:flex;gap:12px;justify-content:center}
+.pb{font:900 clamp(15px,5vh,22px) 'Arial Black',system-ui;padding:clamp(5px,1.6vh,10px) 18px;border-radius:12px;border:3px solid #fff;background:#7a3fc4;color:#fff;box-shadow:0 4px 0 #0006;cursor:pointer;touch-action:manipulation}
+.pb:focus,.pb.sel{outline:none;background:#ffc83a;color:#1a0a2a;transform:scale(1.04)}#pq{font:900 clamp(18px,6vh,30px) 'Arial Black',system-ui}.prow .pb{min-width:96px}
 #note{top:calc(4px + var(--st));left:50%;transform:translateX(-50%);font-size:11px;white-space:nowrap}
 #note b{font-size:15px}
 #toast{top:calc(38px + var(--st));left:calc(12px + var(--mmw) + var(--sl));font-size:11px;color:#ffd34d;border:0;background:rgba(0,0,0,.35);display:none}
@@ -154,7 +161,7 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
 @media (max-aspect-ratio:1/1){#tcards{flex-direction:column}.tcard{max-width:none;flex-direction:row}.tcard canvas{width:40%;flex:none}.tcup{font-size:11px;padding:4px 8px}#tcups{flex-wrap:wrap;justify-content:center}}
 </style></head><body>
 <div id="hud">
- <div id="place" class="box">-</div><div id="lap" class="box">LAP 1/3<br><span id="style">STYLE 0</span></div>
+ <div id="place" class="box">-</div><button id="bpause" aria-label="Pause">❚❚</button><div id="lap" class="box">LAP 1/3<br><span id="style">STYLE 0</span></div>
  <div id="toast" class="box"></div>
  <canvas id="mmap"></canvas>
  <div id="speed" class="box"><span id="mph">0 MPH</span><span>SPECIAL</span><div id="meterbar"><div id="meterfill"></div></div><span>BAND</span><div id="meterbar2" class="mb"><div id="bandfill"></div></div></div>
@@ -175,7 +182,7 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
  <p><b id="mtrack">Brass City</b> · 3 laps · 8 instrument cars · 4 cups</p>
  <p><span class="touchonly"><b>Steer</b> with ◀ ▶ and hold <b>GAS</b>. Flips and your car's special move fire automatically when the meter fills.</span><span class="kbdonly"><b>Keyboard:</b> ↑ gas, ↓ brake, ← → steer, <b>Shift</b> drift (sparks go <span style="color:#5af">blue</span> then <span style="color:#f90">orange</span>; let go to boost), <b>Space</b> special move / flip in the air.</span> Find Backbeat Alley; dodge stands, timpani and the giant metronome. Style fills the <b>Band Meter</b>.</p></div>
  <div class="col-r">
- <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v23 · © 2026 Backline Vintage</p></div>
+ <button id="go">START</button><p style="font-size:10px;opacity:.6;margin-top:2px">Prototype v24 · © 2026 Backline Vintage</p></div>
 </div></div>
 <div id="garage"><div id="gtitle">CHOOSE YOUR RIDE</div>
  <button id="gprev" class="garr">◀</button><button id="gnext" class="garr">▶</button>
@@ -186,6 +193,10 @@ body.touchui #keys,body.touchui .kbdonly,body.kbdui .touchonly{display:none}
  <div id="tbar"><button id="tback">◀ CAR</button><button id="trace">SINGLE RACE</button><button id="tcupgo">🏆 CUP</button></div><div id="thint" class="kbdonly">← → track · ↑ ↓ cup · Enter single race · C cup (3 races) · 1 2 3 level · Esc back</div></div>
 <div id="cupst"><canvas id="cconf"></canvas><div id="clevel"></div><div id="ctitle"></div><div id="csub"></div><div id="cbody"><canvas id="ctrophy"></canvas><div id="ctable"></div></div><div id="cbtns"><button id="cnext">NEXT RACE</button><button id="cextra">TRACK SELECT</button><button id="cmenu">MENU</button></div><div id="ckeys" class="kbdonly">Enter = continue · Esc = menu</div></div>
 <div id="gate"><div id="gcup"></div><div id="gtrack"></div><div id="gtap"><span class="touchonly">TAP TO START YOUR ENGINES!</span><span class="kbdonly">PRESS ANY KEY OR CLICK TO START YOUR ENGINES!</span></div><div id="gsub">🔊 sound on for the countdown</div></div>
+<div id="pausem"><div id="pbox"><div id="ptitle">⏸ PAUSED</div><div id="pinfo"></div>
+ <div id="pmain"><button id="presume" class="pb">▶ RESUME</button><button id="prestart" class="pb">↻ RESTART RACE</button><button id="pquit" class="pb">✖ QUIT RACE</button></div>
+ <div id="pconf"><div id="pq">Are you sure?</div><div id="pqsub"></div><div class="prow"><button id="pyes" class="pb">YES</button><button id="pno" class="pb">NO</button></div></div>
+ <div id="phint" class="kbdonly">↑ ↓ choose · Enter select · Esc resume</div></div></div>
 <div id="rot">Turn your device sideways 🔄</div>
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
 <script type="module" src="game.js"></script>

@@ -174,9 +174,9 @@ function initAudio() {
   if (AC.state !== 'running') { const pr = AC.resume(); if (pr && pr.catch) pr.catch(() => {}); }
   try { const sb = AC.createBufferSource(); sb.buffer = AC.createBuffer(1, 1, 22050); sb.connect(AC.destination); sb.start(0); } catch (_) {}
 }
-for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { if (!AC || AC.state !== 'running' || (silentEl && silentEl.paused)) initAudio(); }, { capture: true, passive: true });
-document.addEventListener('visibilitychange', () => { if (!AC) return; if (document.hidden) { AC.suspend && AC.suspend().catch(() => {}); } else if (race.musicOn) { initAudio(); if (MUSIC) MUSIC.resync(AC.currentTime + .1); } });
-setInterval(() => { if (AC && AC.state !== 'running' && !document.hidden && race.musicOn) { AC.resume().catch(() => {}); } }, 1000);
+for (const ev of ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'click', 'keydown']) document.addEventListener(ev, () => { if (race.state === 'paused') return; if (!AC || AC.state !== 'running' || (silentEl && silentEl.paused)) initAudio(); }, { capture: true, passive: true });
+document.addEventListener('visibilitychange', () => { if (document.hidden && (race.state === 'race' || race.state === 'count') && !AUTOPILOT) pauseRace(); if (!AC || race.state === 'paused') return; if (document.hidden) { AC.suspend && AC.suspend().catch(() => {}); } else if (race.musicOn) { initAudio(); if (MUSIC) MUSIC.resync(AC.currentTime + .1); } });
+setInterval(() => { if (AC && AC.state !== 'running' && !document.hidden && race.musicOn && race.state !== 'paused') { AC.resume().catch(() => {}); } }, 1000);
 function brass(f, t, dur, vol, out = master, bright = 2600) {
   const o1 = AC.createOscillator(), o2 = AC.createOscillator(), fl = AC.createBiquadFilter(), g = AC.createGain();
   o1.type = 'sawtooth'; o2.type = 'sawtooth'; o1.frequency.value = f; o2.frequency.value = f * 1.004;
@@ -266,10 +266,10 @@ let CUP = null; try { const c = JSON.parse(sessionStorage.getItem('tt_cup') || '
 // ---------- v23 difficulty (band-themed) + human-like, forgiving AI ----------
 // skill: AI top-speed range; slop: how often rivals make little mistakes; rubAhead/rubBehind: max ease-off / push from rubber-banding;
 // help: player top-speed catch-up when behind the leader; meter: player special-meter fill rate when not leading; warpMiss/alleyP: chance a rival misses a warp ramp / takes the shortcut
-const DIFFS = {
-  rehearsal: { id: 'rehearsal', name: 'Rehearsal', icon: '🎼', blast: .45, skill: [.88, .94], slop: 1.8, rubAhead: .1, rubBehind: .03, help: .07, meter: 1.6, lag: [.4, 1.1], warpMiss: .4, alleyP: .15, bumpy: .5 },
-  concert: { id: 'concert', name: 'Concert', icon: '🎻', blast: .8, skill: [.93, .99], slop: 1, rubAhead: .07, rubBehind: .05, help: .04, meter: 1.3, lag: [.2, .7], warpMiss: .22, alleyP: .3, bumpy: .8 },
-  virtuoso: { id: 'virtuoso', name: 'Virtuoso', icon: '🎺', blast: 1.3, skill: [.98, 1.03], slop: .35, rubAhead: .025, rubBehind: .03, help: 0, meter: 1, lag: [0, .25], warpMiss: .06, alleyP: .42, bumpy: 1 } };
+const DIFFS = { // v24 retune: Rehearsal = the v23 Concert tuning; Concert and Virtuoso are clearly tougher
+  rehearsal: { id: 'rehearsal', name: 'Rehearsal', icon: '🎼', blast: .8, skill: [.93, .99], slop: 1, rubAhead: .07, rubBehind: .05, help: .04, meter: 1.3, lag: [.2, .7], warpMiss: .22, alleyP: .3, bumpy: .8 },
+  concert: { id: 'concert', name: 'Concert', icon: '🎻', blast: 1.05, skill: [.985, 1.03], slop: .45, rubAhead: .03, rubBehind: .05, help: .01, meter: 1.1, lag: [.05, .3], warpMiss: .08, alleyP: .45, bumpy: .9 },
+  virtuoso: { id: 'virtuoso', name: 'Virtuoso', icon: '🎺', blast: 1.6, skill: [1.01, 1.055], slop: .18, rubAhead: .015, rubBehind: .05, help: 0, meter: 1, lag: [0, .15], warpMiss: .02, alleyP: .55, bumpy: 1 } };
 const DIFF_ORDER = ['rehearsal', 'concert', 'virtuoso'];
 let DIFF = DIFFS[Q.get('diff')] || (CUP && DIFFS[CUP.diff]) || (() => { try { return DIFFS[localStorage.getItem('tt_diff')]; } catch (_) { return null; } })() || DIFFS.concert;
 function setDiff(id) { if (!DIFFS[id] || CUP) return; DIFF = DIFFS[id]; try { localStorage.setItem('tt_diff', id); } catch (_) {} }
@@ -522,7 +522,8 @@ const band = d => { race.band = Math.max(0, Math.min(1, race.band + d)); };
 
 // ---------- input ----------
 const keys = {}; const touch = { l: 0, r: 0, brake: 0, dash: 0, gas: 0, drift: 0 }; window.__tt.touch = touch;
-addEventListener('keydown', e => { keys[e.code] = 1; if (e.code === 'Space') { touch.dashPress = 1; e.preventDefault(); } if (race.state === 'done' && cupUp()) { if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') { e.preventDefault(); cupPrimary(); } else if (e.code === 'Escape' || e.code === 'KeyM') cupMenu(); return; }
+addEventListener('keydown', e => { if (race.state === 'paused') { pauseKey(e); return; } if ((race.state === 'race' || race.state === 'count') && (e.code === 'Escape' || e.code === 'KeyP') && !e.repeat) { e.preventDefault(); pauseRace(); return; }
+  keys[e.code] = 1; if (e.code === 'Space') { touch.dashPress = 1; e.preventDefault(); } if (race.state === 'done' && cupUp()) { if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') { e.preventDefault(); cupPrimary(); } else if (e.code === 'Escape' || e.code === 'KeyM') cupMenu(); return; }
   if (race.state === 'done' && resultsUp()) { if (e.code === 'Enter' || e.code === 'NumpadEnter') { e.preventDefault(); resAction('again'); } else if (e.code === 'KeyC') resAction('change'); else if (e.code === 'Escape' || e.code === 'KeyM') resAction('menu'); return; }
   if (race.state === 'menu' && (e.code === 'Enter')) openGarage();
   else if (race.state === 'tsel') { if (e.code === 'ArrowLeft' || e.code === 'KeyA') pickTrack(-1); else if (e.code === 'ArrowRight' || e.code === 'KeyD') pickTrack(1); else if (e.code === 'ArrowUp' || e.code === 'KeyW') pickCup(-1); else if (e.code === 'ArrowDown' || e.code === 'KeyS') pickCup(1);
@@ -579,7 +580,7 @@ function trackArt(cv, t) { const dpr = Math.min(2, devicePixelRatio || 1), g = c
   else { g.fillStyle = '#fff9'; g.font = `bold ${54 * u | 0}px Arial Black, Impact`; g.textAlign = 'center'; g.fillText('?', w / 2, h / 2 + 20 * u); } }
 function renderDiff() { const box = $('tdiff'); if (!box.childElementCount) DIFF_ORDER.forEach(id => { const b = document.createElement('button'); b.className = 'tdf'; b.dataset.d = id; b.innerHTML = `${DIFFS[id].icon} ${DIFFS[id].name}`;
     b.addEventListener('click', () => { if (ghostClick()) return; setDiff(id); renderDiff(); sfx(id === 'rehearsal' ? 523 : id === 'concert' ? 659 : 784, .1, .1); }); box.appendChild(b); });
-  [...box.children].forEach(b => b.classList.toggle('on', b.dataset.d === DIFF.id)); const tip = { rehearsal: 'easy · relaxed rivals, extra catch-up', concert: 'medium · fair, forgiving rivals', virtuoso: 'hard · sharp rivals, no catch-up' }[DIFF.id]; $('tdtip').textContent = tip; }
+  [...box.children].forEach(b => b.classList.toggle('on', b.dataset.d === DIFF.id)); const tip = { rehearsal: 'easy · friendly rivals, a little catch-up help', concert: 'medium · quicker rivals, fewer slip-ups, less help', virtuoso: 'hard · sharp rivals, rare mistakes, more blasts, no help' }[DIFF.id]; $('tdtip').textContent = tip; }
 window.__tt.diff = { get id() { return DIFF.id; }, set: id => { setDiff(id); if ($('tdiff').childElementCount) renderDiff(); }, DIFFS };
 function buildTrackSelect() { renderDiff(); const cups = $('tcups'); if (cups.childElementCount) return;
   CUPS.forEach((c, ci) => { const b = document.createElement('button'); b.className = 'tcup'; b.style.setProperty('--c', c.color); b.textContent = c.icon + ' ' + c.name;
@@ -993,6 +994,38 @@ function showResults(order, place, bonus, style, st) {
 }
 function hideResults() { $('results').style.display = 'none'; $('finishfx').style.display = 'none'; confettiOn = false; clearTimeout(resTimer); }
 function resultsUp() { return $('results').style.display === 'flex'; }
+// ---------- v24 pause menu (Esc / P / ❚❚ button): everything freezes: sim, race timer, AudioContext (music, jingle, SFX) ----------
+let pauseSel = 0, pauseConf = false, pauseT = 0;
+const pauseBtns = () => pauseConf ? ['pyes', 'pno'] : ['presume', 'prestart', 'pquit'];
+function pauseRender() { $('pmain').style.display = pauseConf ? 'none' : 'flex'; $('pconf').style.display = pauseConf ? 'flex' : 'none'; pauseBtns().forEach((id, i) => $(id).classList.toggle('sel', i === pauseSel)); }
+function pauseRace() { if (race.state !== 'race' && race.state !== 'count') return; race.prevState = race.state; race.state = 'paused'; for (const k in keys) keys[k] = 0; for (const k in touch) touch[k] = 0;
+  if (AC && AC.state === 'running' && AC.suspend) AC.suspend().catch(() => {}); pauseConf = false; pauseSel = 0; pauseT = performance.now();
+  $('pinfo').textContent = `${TRK.name}${CUP ? ` · ${CUP.def.icon} ${CUP.def.name} race ${CUP.i + 1} of ${CUP.def.tracks.length}` : ''} · ${DIFF.icon} ${DIFF.name}`;
+  $('pqsub').textContent = CUP ? `Quitting leaves the ${CUP.def.name} (your cup points are lost).` : 'This race will end and you go back to track select.';
+  pauseRender(); $('pausem').style.display = 'flex'; window.__tt.pauses = (window.__tt.pauses || 0) + 1; }
+function resumeRace() { if (race.state !== 'paused') return; $('pausem').style.display = 'none'; race.state = race.prevState || 'race'; last = performance.now(); acc = 0; initAudio(); }
+// drop every sound already scheduled for this race (jingle, music lookahead, SFX) by swapping in fresh buses
+function flushRaceAudio() { if (!AC) return; try { if (RSFX) RSFX.ambientStop(); } catch (_) {} RSFX = null;
+  for (const [old, v] of [[musicGain, .5], [sfxBus, .6]]) { try { old.disconnect(); } catch (_) {} }
+  musicGain = AC.createGain(); musicGain.gain.value = .5; musicGain.connect(master); sfxBus = AC.createGain(); sfxBus.gain.value = .6; sfxBus.connect(master); MUSIC = null; }
+function pauseAct(id) { if (race.state !== 'paused' || performance.now() - pauseT < 250) return; pauseT = performance.now();
+  if (id === 'presume') resumeRace();
+  else if (id === 'prestart') { $('pausem').style.display = 'none'; race.state = race.prevState || 'race'; initAudio(); flushRaceAudio(); window.__tt.restarts = (window.__tt.restarts || 0) + 1; startRace(); }
+  else if (id === 'pquit') { pauseConf = true; pauseSel = 1; pauseRender(); }
+  else if (id === 'pno') { pauseConf = false; pauseSel = 2; pauseRender(); }
+  else if (id === 'pyes') quitRace(); }
+function quitRace() { $('pausem').style.display = 'none'; initAudio(); flushRaceAudio(); for (const k in touch) touch[k] = 0; hideResults();
+  Object.assign(race, { state: 'menu', results: null, fastMusic: false, musicArmed: false, countdown: 0 }); $('finishfx').style.display = 'none'; $('msg').textContent = ''; $('hud').style.display = 'none'; window.__tt.quits = (window.__tt.quits || 0) + 1;
+  if (CUP) { cupSave(null); CUP = null; DIFF = DIFFS[(() => { try { return localStorage.getItem('tt_diff'); } catch (_) { return null; } })()] || DIFF; $('hud').style.display = ''; $('overlay').style.display = 'flex'; } // cup: back to the main menu
+  else openTrackSelect(); }
+function pauseKey(e) { if (e.repeat) return; const n = pauseBtns().length; e.preventDefault();
+  if (e.code === 'Escape' || e.code === 'KeyP') { if (pauseConf) { pauseConf = false; pauseSel = 2; pauseRender(); } else { pauseT = 0; resumeRace(); } }
+  else if (e.code === 'ArrowUp' || e.code === 'ArrowLeft' || e.code === 'KeyW' || e.code === 'KeyA') { pauseSel = (pauseSel + n - 1) % n; pauseRender(); }
+  else if (e.code === 'ArrowDown' || e.code === 'ArrowRight' || e.code === 'KeyS' || e.code === 'KeyD' || e.code === 'Tab') { pauseSel = (pauseSel + 1) % n; pauseRender(); }
+  else if (e.code === 'Enter' || e.code === 'NumpadEnter' || e.code === 'Space') { pauseT = 0; pauseAct(pauseBtns()[pauseSel]); } }
+for (const id of ['presume', 'prestart', 'pquit', 'pyes', 'pno']) { const b = $(id); b.addEventListener('pointerup', e => { e.preventDefault(); pauseAct(id); }); b.addEventListener('click', () => pauseAct(id)); }
+{ const bp = $('bpause'); const go = e => { e.preventDefault(); e.stopPropagation(); pauseRace(); }; bp.addEventListener('pointerdown', e => e.stopPropagation()); bp.addEventListener('pointerup', go); bp.addEventListener('click', go); }
+window.__tt.pause = { pause: pauseRace, resume: resumeRace, act: id => { pauseT = 0; pauseAct(id); }, get sel() { return pauseSel; }, get conf() { return pauseConf; } };
 function resAction(k) { if (race.state !== 'done' || !resultsUp()) return; hideResults(); sfx(660, .1, .12);
   if (k === 'again') { $('hud').style.display = ''; startRace(); }
   else if (k === 'change') openGarage();
@@ -1098,7 +1131,7 @@ function drawMinimap() {
   ctx.beginPath(); ctx.moveTo(r, 0); ctx.lineTo(-r * .7, r * .62); ctx.lineTo(-r * .35, 0); ctx.lineTo(-r * .7, -r * .62); ctx.closePath(); ctx.fillStyle = pc; ctx.fill(); ctx.lineWidth = sz * .016; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
 }
 window.__tt.minimap = drawMinimap; window.__tt.WARPS = WARPS;
-function hud() {
+function hud() { { const bp = $('bpause'), on = race.state === 'race' || race.state === 'count'; if (bp.dataset.on !== '' + on) { bp.dataset.on = on; bp.style.display = on ? '' : 'none'; } }
   const order = [...cars].sort((a, b) => progress(b) - progress(a)); race.place = order.indexOf(player) + 1;
   if (race.state === 'race') { if (race.place < race.lastPlace) { race.stats.passes++; race.style += 75; band(.1); if (RSFX) RSFX.place(race.place); window.__tt.placeStings = (window.__tt.placeStings || 0) + 1; } race.lastPlace = race.place; }
   sections = race.state === 'menu' || race.state === 'garage' || race.state === 'tsel' ? 4 : 1 + Math.min(4, Math.floor(race.band * 5));
@@ -1118,7 +1151,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(.1, (now - last) / 1000) * TIMESCALE; last = now; acc += dt;
   try {
-    while (acc > 1 / 60) { sim(1 / 60); acc -= 1 / 60; }
+    if (race.state === 'paused') acc = 0; else while (acc > 1 / 60) { sim(1 / 60); acc -= 1 / 60; }
     camDt = dt; CITY.update(dt, performance.now() / 1000); if (ALLEY.anim) ALLEY.anim(dt); schedMusic(); if (race.state === 'garage') { hud(); renderGarage(dt); } else { syncMeshes(); hud(); }
     if (flashT > 0) { flashT -= dt / TIMESCALE; if (flashT <= 0) $('msg').textContent = ''; }
     if (toastT > 0) { toastT -= dt / TIMESCALE; if (toastT <= 0) $('toast').style.display = 'none'; }
