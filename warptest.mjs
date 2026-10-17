@@ -2,11 +2,12 @@
 import { chromium } from 'playwright';
 const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1243/chrome-headless-shell-linux64/chrome-headless-shell';
 const b = await chromium.launch({ executablePath: EXE, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
+const TQ = process.env.TRK ? `track=${process.env.TRK}&` : '';
 const base = process.argv[2] || 'http://127.0.0.1:8787/', runs = +(process.argv[3] || 1);
 async function run(nowarp) {
   const p = await b.newPage({ viewport: { width: 640, height: 360 } }); const e = []; p.on('pageerror', x => e.push(String(x)));
-  await p.goto(base + `?autopilot&autostart&car=trombone&speed=3${nowarp ? '&nowarp' : ''}&cb=` + Date.now());
-  await p.evaluate(() => { const W = [15, 190, 482]; const R = window.__R = { secs: [], jumps: [] }; let prev = -1; const st = {};
+  await p.goto(base + `?${TQ}autopilot&autostart&car=trombone&speed=3${nowarp ? '&nowarp' : ''}&cb=` + Date.now());
+  await p.evaluate(() => { const W = __tt.WARPS.map(w => w.i); const R = window.__R = { secs: [], jumps: [] }; let prev = -1; const st = {};
     const poll = () => { const c = __tt.player, r = __tt.race; if (r.state === 'race') { const i = c.idx;
       for (const w of W) { const a = (w - 12 + 600) % 600, z = (w + 45) % 600, crossed = (q) => prev >= 0 && ((q - prev + 600) % 600) < 30 && ((i - q + 600) % 600) < 30 && prev !== i && ((q - prev + 600) % 600) <= ((i - prev + 600) % 600);
         if (crossed(a)) st[w] = { t: r.t, v0: c.v, vmax: 0, lap: c.lap };
