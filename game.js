@@ -1,6 +1,8 @@
 // Turbo Tempo Racing — Brass City prototype. © 2026 Backline Vintage. Original code/art.
 import * as THREE from 'three';
 import { buildCar } from './cars.js';
+import { buildCity } from './city.js';
+import { bakeChunks } from './deco.js';
 const Q = new URLSearchParams(location.search);
 const AUTOPILOT = Q.has('autopilot'), TIMESCALE = +Q.get('speed') || 1, AUTOSTART = Q.has('autostart');
 const $ = id => document.getElementById(id);
@@ -29,8 +31,8 @@ document.documentElement.style.setProperty('--vvh', vpSize()[1] + 'px');
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 document.body.prepend(renderer.domElement);
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xf7a35c);
-scene.fog = new THREE.Fog(0xf2a066, 120, 520);
+scene.background = new THREE.Color(0xffa060);
+scene.fog = new THREE.Fog(0xf2a066, 140, 560);
 const camera = new THREE.PerspectiveCamera(68, vpSize()[0] / vpSize()[1], 0.5, 1200);
 function onResize() { const [w, h] = vpSize(); document.documentElement.style.setProperty('--vvh', h + 'px'); renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); window.scrollTo(0, 0); }
 addEventListener('resize', onResize); addEventListener('orientationchange', () => { onResize(); setTimeout(onResize, 300); setTimeout(onResize, 800); });
@@ -40,17 +42,6 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 scene.add(new THREE.HemisphereLight(0xffe2c0, 0x40304a, 1.3));
 const sun = new THREE.DirectionalLight(0xfff0d0, 1.8); sun.position.set(-200, 300, 100); scene.add(sun);
 
-// sky dome with gradient
-{
-  const c = document.createElement('canvas'); c.width = 2; c.height = 256; const g = c.getContext('2d');
-  const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#2a1a6a'); gr.addColorStop(0.45, '#c8508a'); gr.addColorStop(0.75, '#ffa05a'); gr.addColorStop(1, '#ffd890');
-  g.fillStyle = gr; g.fillRect(0, 0, 2, 256);
-  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(900, 24, 16), new THREE.MeshBasicMaterial({ map: t, side: THREE.BackSide, fog: false }));
-  scene.add(sky);
-  const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(40, 32), new THREE.MeshBasicMaterial({ color: 0xffe9a0, fog: false }));
-  sunDisc.position.set(-500, 90, -600); sunDisc.lookAt(0, 0, 0); scene.add(sunDisc);
-}
 const ground = new THREE.Mesh(new THREE.PlaneGeometry(3000, 3000), new THREE.MeshLambertMaterial({ color: 0x5a5560 }));
 ground.rotation.x = -Math.PI / 2; ground.position.y = -0.05; scene.add(ground);
 
@@ -114,9 +105,9 @@ function crosswalk(i0) {
     const m = new THREE.Mesh(new THREE.BoxGeometry(kw * 0.92, 0.04, 6), white); m.position.set(-W / 2 + kw * (k + .5), 0.05, 0); grp.add(m);
     if ([0, 1, 3, 4, 5].includes(k % 7) && k < keys - 1) { const b = new THREE.Mesh(new THREE.BoxGeometry(kw * .6, 0.06, 3.6), black); b.position.set(-W / 2 + kw * (k + 1), 0.08, -1.2); grp.add(b); }
   }
-  const p = P[i0]; grp.position.copy(p).setY(E[i0]); grp.rotation.y = Math.atan2(T[i0].x, T[i0].z); scene.add(grp);
+  const p = P[i0]; grp.position.copy(p).setY(E[i0]); grp.rotation.y = Math.atan2(T[i0].x, T[i0].z); cwStage.add(grp);
 }
-[110, 230, 490, 560].forEach(crosswalk);
+const cwStage = new THREE.Group(); [110, 230, 490, 560].forEach(crosswalk); bakeChunks(cwStage, scene);
 // start/finish
 {
   const t = canvasTex(128, 16, (g) => { for (let x = 0; x < 16; x++) for (let y = 0; y < 2; y++) { g.fillStyle = (x + y) % 2 ? '#111' : '#fff'; g.fillRect(x * 8, y * 8, 8, 8); } });
@@ -133,42 +124,11 @@ function crosswalk(i0) {
 function alleyUV(x, z) { const a = P[ALLEY_A], b = P[ALLEY_B], abx = b.x - a.x, abz = b.z - a.z, L2 = abx * abx + abz * abz, L = Math.sqrt(L2);
   const t = ((x - a.x) * abx + (z - a.z) * abz) / L2, u = ((x - a.x) * -abz + (z - a.z) * abx) / L; return { t, u, L }; }
 function alleyDist(x, z) { const { t, u, L } = alleyUV(x, z); return t < 0 || t > 1 ? 1e9 : Math.abs(u); }
-// ---------- Brass City buildings: trumpet-bell skyscrapers ----------
-const winTex = canvasTex(64, 128, (g) => {
-  g.fillStyle = '#4b3f5e'; g.fillRect(0, 0, 64, 128);
-  for (let y = 4; y < 128; y += 10) for (let x = 4; x < 64; x += 10) { g.fillStyle = Math.random() < .45 ? '#ffd88a' : '#2a2340'; g.fillRect(x, y, 6, 6); }
-}, true);
+// ---------- v19 scenery (buildings, landmarks, sky) ----------
 const brassMat = new THREE.MeshStandardMaterial({ color: 0xe0b04a, metalness: .85, roughness: .28, emissive: 0x402800 });
 const silverMat = new THREE.MeshStandardMaterial({ color: 0xcfd6de, metalness: .9, roughness: .25 });
-const bellProfile = []; for (let i = 0; i <= 12; i++) { const t = i / 12; bellProfile.push(new THREE.Vector2(1 + Math.pow(t, 3) * 1.9, t * 6)); }
-const bellGeo = new THREE.LatheGeometry(bellProfile, 24);
-function building(x, z, kind) {
-  const g = new THREE.Group(); const h = 25 + srand() * 55, r = 4 + srand() * 3;
-  const bodyMat = new THREE.MeshLambertMaterial({ map: winTex.clone() }); bodyMat.map.repeat.set(2, h / 20); bodyMat.map.needsUpdate = true;
-  if (kind === 0) { // trumpet tower: tall tube + flared bell top + valves
-    const body = new THREE.Mesh(new THREE.CylinderGeometry(r, r * 1.1, h, 16), bodyMat); body.position.y = h / 2; g.add(body);
-    const bell = new THREE.Mesh(bellGeo, brassMat); bell.scale.set(r * .8, 1.3, r * .8); bell.position.y = h - 1; g.add(bell);
-    for (let v = 0; v < 3; v++) { const vv = new THREE.Mesh(new THREE.CylinderGeometry(r * .22, r * .22, h * .3, 10), brassMat); vv.position.set((v - 1) * r * .6, h * .55, r * 1.02); g.add(vv); const cap = new THREE.Mesh(new THREE.CylinderGeometry(r * .3, r * .3, 1, 10), brassMat); cap.position.set((v - 1) * r * .6, h * .7 + .5, r * 1.02); g.add(cap); }
-    const ring = new THREE.Mesh(new THREE.TorusGeometry(r * 1.12, .5, 8, 24), brassMat); ring.rotation.x = Math.PI / 2; ring.position.y = h * .35; g.add(ring);
-  } else { // box tower with brass trim and a sideways bell sign
-    const w = r * 1.8; const body = new THREE.Mesh(new THREE.BoxGeometry(w, h, w), bodyMat); body.position.y = h / 2; g.add(body);
-    const trim = new THREE.Mesh(new THREE.BoxGeometry(w + 1, 1.2, w + 1), brassMat); trim.position.y = h; g.add(trim);
-    const bell = new THREE.Mesh(bellGeo, brassMat); bell.scale.set(1.3, .8, 1.3); bell.rotation.z = Math.PI / 2; bell.position.set(w / 2 + 3.5, h * .7, 0); g.add(bell);
-  }
-  g.position.set(x, 0, z); g.rotation.y = srand() * 6; scene.add(g);
-}
-for (let i = 0; i < N; i += 9) for (const sd of [-1, 1]) {
-  const off = W / 2 + 18 + srand() * 12; const p = P[i].clone().addScaledVector(S[i], sd * off);
-  let ok = true; for (let j = 0; j < N; j += 3) if (P[j].distanceToSquared(p) < (W / 2 + 15) ** 2) { ok = false; break; }
-  if (alleyDist(p.x, p.z) < ALLEY_HW + 13) ok = false;
-  if (ok) building(p.x, p.z, srand() < .6 ? 0 : 1);
-}
-// streetlamps shaped like music notes
-for (let i = 5; i < N; i += 30) for (const sd of [-1, 1]) {
-  const p = P[i].clone().addScaledVector(S[i], sd * (W / 2 + 3));
-  const pole = new THREE.Mesh(new THREE.CylinderGeometry(.18, .18, 7), new THREE.MeshLambertMaterial({ color: 0x222 })); pole.position.copy(p).setY(3.5 + E[i]); scene.add(pole);
-  const head = new THREE.Mesh(new THREE.SphereGeometry(.8, 12, 8), new THREE.MeshBasicMaterial({ color: 0xfff1b0 })); head.scale.set(1.3, .9, 1); head.position.copy(p).setY(7 + E[i]); scene.add(head);
-}
+const CITY = buildCity({ scene, P, S, T, N, W, E, alleyDist, ALLEY_HW, brassMat });
+window.__tt_city = CITY.stats;
 
 // ---------- audio ----------
 let AC = null, master, musicGain;
@@ -932,7 +892,7 @@ function frame(now) {
   let dt = Math.min(.1, (now - last) / 1000) * TIMESCALE; last = now; acc += dt;
   try {
     while (acc > 1 / 60) { sim(1 / 60); acc -= 1 / 60; }
-    camDt = dt; schedMusic(); if (race.state === 'garage') { hud(); renderGarage(dt); } else { syncMeshes(); hud(); }
+    camDt = dt; CITY.update(dt, performance.now() / 1000); schedMusic(); if (race.state === 'garage') { hud(); renderGarage(dt); } else { syncMeshes(); hud(); }
     if (flashT > 0) { flashT -= dt / TIMESCALE; if (flashT <= 0) $('msg').textContent = ''; }
     if (toastT > 0) { toastT -= dt / TIMESCALE; if (toastT <= 0) $('toast').style.display = 'none'; }
     if (race.state !== 'garage') renderer.render(scene, camera);
