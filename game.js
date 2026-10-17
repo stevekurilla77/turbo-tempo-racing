@@ -269,7 +269,7 @@ let CUP = null; try { const c = JSON.parse(sessionStorage.getItem('tt_cup') || '
 const DIFFS = { // v24 retune: Rehearsal = the v23 Concert tuning; Concert and Virtuoso are clearly tougher
   rehearsal: { id: 'rehearsal', name: 'Rehearsal', icon: '🎼', blast: .8, skill: [.93, .99], slop: 1, rubAhead: .07, rubBehind: .05, help: .04, meter: 1.3, lag: [.2, .7], warpMiss: .22, alleyP: .3, bumpy: .8 },
   concert: { id: 'concert', name: 'Concert', icon: '🎻', blast: 1.05, skill: [.985, 1.03], slop: .45, rubAhead: .03, rubBehind: .05, help: .01, meter: 1.1, lag: [.05, .3], warpMiss: .08, alleyP: .45, bumpy: .9 },
-  virtuoso: { id: 'virtuoso', name: 'Virtuoso', icon: '🎺', blast: 1.6, skill: [1.01, 1.055], slop: .18, rubAhead: .015, rubBehind: .05, help: 0, meter: 1, lag: [0, .15], warpMiss: .02, alleyP: .55, bumpy: 1 } };
+  virtuoso: { id: 'virtuoso', name: 'Virtuoso', icon: '🎺', blast: 1.6, skill: [1.03, 1.075], slop: .15, rubAhead: .01, rubBehind: .05, help: 0, meter: 1, lag: [0, .1], warpMiss: .02, alleyP: .65, bumpy: 1 } };
 const DIFF_ORDER = ['rehearsal', 'concert', 'virtuoso'];
 let DIFF = DIFFS[Q.get('diff')] || (CUP && DIFFS[CUP.diff]) || (() => { try { return DIFFS[localStorage.getItem('tt_diff')]; } catch (_) { return null; } })() || DIFFS.concert;
 function setDiff(id) { if (!DIFFS[id] || CUP) return; DIFF = DIFFS[id]; try { localStorage.setItem('tt_diff', id); } catch (_) {} }
