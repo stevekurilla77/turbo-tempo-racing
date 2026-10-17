@@ -567,7 +567,8 @@ function startCup(ci) { if (race.state !== 'tsel' && race.state !== 'done') retu
 function cupAward(order, place) { if (CUP.awarded === CUP.i) return; CUP.last = {}; order.forEach((c, k) => { CUP.pts[c.type] = (CUP.pts[c.type] || 0) + CUP_POINTS[k]; CUP.last[c.type] = CUP_POINTS[k]; });
   CUP.hist.push({ track: TRACK_ID, place, order: order.map(c => c.type) }); CUP.awarded = CUP.i; const save = { ...CUP }; delete save.def; cupSave(save); }
 const cupName = t => t === CUP.car ? 'You' : DRIVERS[t], cupRank = () => Object.keys(CUP.pts).sort((a, b) => CUP.pts[b] - CUP.pts[a] || (CUP.last[b] || 0) - (CUP.last[a] || 0));
-function cupUp() { return $('cupst').style.display === 'flex'; }
+let cupT = 0; // one tap fires pointerup + click: ignore the second, and any tap right after a screen change
+function cupUp() { return $('cupst').style.display === 'flex' && race.state === 'done' && performance.now() - cupT > 400; }
 function cupTable(rank, showLast) { return '<table>' + rank.map((t, k) => `<tr class="${t === CUP.car ? 'me' : ''}"><td class="rk">${k + 1}</td><td class="nm">${cupName(t)}<small>${CARS[t].name}</small></td>${showLast ? `<td class="pl">+${CUP.last[t] || 0}</td>` : ''}<td class="pt">${CUP.pts[t]}<small>PTS</small></td></tr>`).join('') + '</table>'; }
 function showCupStandings() { if (race.state !== 'done') return; $('finishfx').style.display = 'none'; $('hud').style.display = 'none';
   const el = $('cupst'), place = race.results.place, gained = CUP_POINTS[place - 1], last = CUP.i >= CUP.def.tracks.length - 1; el.className = 'stand';
@@ -575,14 +576,14 @@ function showCupStandings() { if (race.state !== 'done') return; $('finishfx').s
   $('csub').innerHTML = `${place === 1 ? 'You won' : 'You finished ' + ORD(place)} at <b>${TRK.name}</b>! <span class="gain">+${gained} points</span>`;
   $('ctrophy').style.display = 'none'; $('ctable').innerHTML = cupTable(cupRank(), true);
   $('cnext').textContent = last ? 'TROPHY CEREMONY 🏆' : `NEXT RACE ➜ ${CUP.def.tracks[CUP.i + 1][1]}`; $('cmenu').textContent = 'MENU'; $('cextra').style.display = 'none';
-  el.style.display = 'flex'; resultJingle(Math.min(place, 4)); window.__tt.cupShown = (window.__tt.cupShown || 0) + 1; setTimeout(() => { try { $('cnext').focus({ preventScroll: true }); } catch (_) {} }, 50); }
+  el.style.display = 'flex'; cupT = performance.now(); resultJingle(Math.min(place, 4)); window.__tt.cupShown = (window.__tt.cupShown || 0) + 1; setTimeout(() => { try { $('cnext').focus({ preventScroll: true }); } catch (_) {} }, 50); }
 function showCupTrophy() { const el = $('cupst'), rank = cupRank(), R = rank.indexOf(CUP.car) + 1; el.className = 'trophy p' + Math.min(R, 4);
   $('ctitle').textContent = R === 1 ? 'YOU WON THE CUP!' : `${ORD(R)} PLACE IN THE CUP!`;
   $('csub').innerHTML = R === 1 ? `${CUP.def.icon} ${CUP.def.name} champion! The whole band is cheering for you!` : R <= 3 ? `On the ${CUP.def.name} podium with ${CUP.pts[CUP.car]} points. Great driving all the way!` : `${CUP.pts[CUP.car]} points across three great races. The band loved every lap!`;
   drawTrophy($('ctrophy'), R, CUP.def); $('ctrophy').style.display = ''; $('ctable').innerHTML = cupTable(rank, false);
   $('cnext').textContent = 'NEW CUP 🏆'; $('cextra').style.display = ''; $('cmenu').textContent = 'MENU';
-  CUP.fin = true; const save = { ...CUP }; delete save.def; cupSave(save); cupFanfare(R); if (R <= 3) startConfetti('cconf'); window.__tt.trophyShown = (window.__tt.trophyShown || 0) + 1; }
-function cupPrimary() { if (!cupUp()) return; sfx(660, .1, .12); if ($('cupst').className === 'stand') { if (CUP.i >= CUP.def.tracks.length - 1) showCupTrophy(); else { CUP.i++; cupGo(CUP); } }
+  cupT = performance.now(); CUP.fin = true; const save = { ...CUP }; delete save.def; cupSave(save); cupFanfare(R); if (R <= 3) startConfetti('cconf'); window.__tt.trophyShown = (window.__tt.trophyShown || 0) + 1; }
+function cupPrimary() { if (!cupUp()) return; cupT = performance.now(); sfx(660, .1, .12); if ($('cupst').className === 'stand') { if (CUP.i >= CUP.def.tracks.length - 1) showCupTrophy(); else { CUP.i++; cupGo(CUP); } }
   else { const ci = CUPS.indexOf(CUP.def); race.state = 'tsel'; startCup(ci); } }
 function cupMenu() { if (!cupUp()) return; cupSave(null); CUP = null; $('cupst').style.display = 'none'; confettiOn = false; race.state = 'menu'; race.results = null; $('hud').style.display = ''; $('overlay').style.display = 'flex'; }
 function cupTrackSelect() { if (!cupUp()) return; cupSave(null); CUP = null; $('cupst').style.display = 'none'; confettiOn = false; race.results = null; openTrackSelect(); }

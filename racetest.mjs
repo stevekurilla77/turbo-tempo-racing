@@ -1,4 +1,6 @@
 import { chromium } from 'playwright';
+import { TRACKS } from './tracks.js';
+const AA = (TRACKS[process.env.TRK || 'brass'] || TRACKS.brass).alley.A;
 const TQ = process.env.TRK ? `track=${process.env.TRK}&` : '', PRE = process.env.PRE || 'shots/v20-';
 const EXE = '/home/box/.cache/ms-playwright/chromium_headless_shell-1208/chrome-headless-shell-linux64/chrome-headless-shell';
 const b = await chromium.launch({ executablePath: EXE, args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--autoplay-policy=no-user-gesture-required'] });
@@ -69,7 +71,7 @@ if (mode === 'all' || mode === 'ipad') { // iPad landscape + portrait: minimap m
 if (mode === 'all' || mode === 'tunnel') { // shortcut screenshots (autopilot takes the alley)
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } }); const e = errsOf(p);
   await p.goto(base + '?' + TQ + 'autopilot&autostart&car=trombone&speed=1&cb=' + Date.now());
-  await p.waitForFunction(() => __tt.player.idx >= 226 && __tt.player.idx < 300 && __tt.race.state === 'race', null, { timeout: 120000, polling: 16 }); await p.screenshot({ path: `${PRE}tunnel.png` });
+  await p.waitForFunction(AA => __tt.player.idx >= AA - 20 && __tt.player.idx < AA + 50 && __tt.race.state === 'race', AA,  { timeout: 120000, polling: 16 }); await p.screenshot({ path: `${PRE}tunnel.png` });
   await p.waitForFunction(() => __tt.player.alley && __tt.player.boost > 0, null, { timeout: 30000, polling: 16 }); await p.waitForTimeout(250); await p.screenshot({ path: `${PRE}tunnel-inside.png` });
   console.log('tunnel errs', e); await p.close();
 }
