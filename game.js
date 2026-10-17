@@ -8,6 +8,9 @@ import { buildStadium } from './stadium.js';
 import { buildWaterPark } from './waterpark.js';
 import { buildBayou } from './bayou.js';
 import { buildReedForest } from './reed.js';
+import { buildSchool } from './school.js';
+import { buildCanyon } from './canyon.js';
+import { buildVolcano } from './volcano.js';
 import { createMusic, THEMES } from './music.js';
 import { createRaceSfx, GO_AT } from './sfx.js';
 import { SURFACES, ALLEY_STYLES, ROLLERS } from './styles.js';
@@ -64,7 +67,12 @@ const S = T.map(t => new THREE.Vector3(-t.z, 0, t.x)); // side (right) vector
 const SEG = curve.getLength() / N;
 // elevation: one hill (the timpani slope) — everything that sits on the road adds E[i]
 const [HILL_C, HILL_W, HILL_H] = TRK.hill;
-const E = P.map((p, i) => Math.abs(i - HILL_C) < HILL_W ? HILL_H * (.5 + .5 * Math.cos(Math.PI * (i - HILL_C) / HILL_W)) : 0);
+const ELEV = TRK.elev || null; // v26: per-track elevation keys [[index, height], ...] (cosine-eased, loops) — climbs, drops, bridges
+const elevAt = i => { if (!ELEV) return 0; const K = ELEV, n = K.length; for (let k = 0; k < n; k++) { const [i0, h0] = K[k], [i1r, h1] = K[(k + 1) % n], i1 = k + 1 < n ? i1r : i1r + N; const ii = i < i0 ? i + N : i; if (ii >= i0 && ii <= i1) { const u = (ii - i0) / Math.max(1, i1 - i0); return h0 + (h1 - h0) * (.5 - .5 * Math.cos(Math.PI * u)); } } return 0; };
+const E = P.map((p, i) => (Math.abs(i - HILL_C) < HILL_W ? HILL_H * (.5 + .5 * Math.cos(Math.PI * (i - HILL_C) / HILL_W)) : 0) + elevAt(i));
+const GRADE = E.map((e, i) => (E[(i + 2) % N] - E[(i - 2 + N) % N]) / (4 * SEG)); // rise per unit along the road
+// overpass sections: a raised piece of road with another part of the track passing underneath (figure-8 bridge)
+const UNDER = P.map((p, i) => { if (E[i] < 3) return false; for (let j = 0; j < N; j++) { const d = Math.min(Math.abs(i - j), N - Math.abs(i - j)); if (d < 60 || E[i] - E[j] < 4) continue; if (Math.hypot(P[j].x - p.x, P[j].z - p.z) < W + 12) return true; } return false; });
 // shortcut alley: straight cut from P[ALLEY_A] to P[ALLEY_B] (inside of the S-bend)
 const ALLEY_A = TRK.alley.A, ALLEY_B = TRK.alley.B, ALLEY_HW = TRK.alley.HW, MINE = TRK.alley.style === 'mine', ALLEY_TOP = +Q.get('atop') || TRK.alley.top || 1.25, ALLEY_PADV = +Q.get('apadv') || TRK.alley.padV || 1.45, ALLEY_PADN = TRK.alley.padN || 4; // shortcut chord (v15 alley / v20 mine tunnel)
 
@@ -103,8 +111,22 @@ ribbon(-W / 2 - 1.2, -W / 2, 0.06, new THREE.MeshLambertMaterial({ map: curbTex 
 ribbon(W / 2, W / 2 + 1.2, 0.06, new THREE.MeshLambertMaterial({ map: curbTex }), 4);
 ribbon(-W / 2 - 8, -W / 2 - 1.2, 0.12, new THREE.MeshLambertMaterial({ map: walkTex }), 4);
 ribbon(W / 2 + 1.2, W / 2 + 8, 0.12, new THREE.MeshLambertMaterial({ map: walkTex }), 4);
+// v26 elevation tracks: rock/earth embankments sloping down from the road edge, guard rails along raised road, bridge deck + piers over the crossing
+if (ELEV) { const wallTex = XS ? XS.wall(canvasTex) : canvasTex(64, 32, g => { g.fillStyle = '#7a6a5a'; g.fillRect(0, 0, 64, 32); }, true), em = new THREE.MeshLambertMaterial({ map: wallTex, side: THREE.DoubleSide });
+  const railM = new THREE.MeshLambertMaterial({ color: XS && XS.rail != null ? XS.rail : 0xd8d8e0 }), deckM = new THREE.MeshLambertMaterial({ color: 0x5a5a62 }), pierM = new THREE.MeshLambertMaterial({ color: 0x8a8a92 }), stg = new THREE.Group();
+  for (const sd of [-1, 1]) { const pos = [], uv = [], idx = []; let k = 0, open = false;
+    for (let i = 0; i <= N; i++) { const j = i % N, p = P[j], s1 = S[j], e = E[j], on = e > .25 && !UNDER[j]; const l0 = sd * (W / 2 + 8), l1 = sd * (W / 2 + 8 + e * 1.25);
+      pos.push(p.x + s1.x * l0, e + .1, p.z + s1.z * l0, p.x + s1.x * l1, -0.1, p.z + s1.z * l1); uv.push(i * SEG / 8, Math.max(.1, e / 4), i * SEG / 8, 0); if (i > 0 && on && open) idx.push(k - 2, k, k - 1, k - 1, k, k + 1); open = on; k += 2; }
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); g.setIndex(idx); g.computeVertexNormals(); scene.add(new THREE.Mesh(g, em)); }
+  for (let i = 0; i < N; i += 2) { if (E[i] < 2.5) continue; const p = P[i], s1 = S[i], rot = Math.atan2(T[i].x, T[i].z);
+    for (const sd of [-1, 1]) { const x = p.x + s1.x * sd * (W / 2 + 7.6), z = p.z + s1.z * sd * (W / 2 + 7.6); const post = new THREE.Mesh(new THREE.BoxGeometry(.3, 1.2, .3), railM); post.position.set(x, E[i] + .6, z); stg.add(post);
+      const rail = new THREE.Mesh(new THREE.BoxGeometry(.2, .25, SEG * 2.1), railM); rail.position.set(x, E[i] + 1.15, z); rail.rotation.order = 'YXZ'; rail.rotation.y = rot; rail.rotation.x = -Math.atan(GRADE[i]); stg.add(rail); }
+    if (UNDER[i]) { const deck = new THREE.Mesh(new THREE.BoxGeometry(W + 17, 1.1, SEG * 2.05), deckM); deck.position.set(p.x, E[i] - .8, p.z); deck.rotation.order = 'YXZ'; deck.rotation.y = rot; deck.rotation.x = -Math.atan(GRADE[i]); stg.add(deck);
+      if (i % 8 === 0) for (const sd of [-1, 1]) { const x = p.x + s1.x * sd * (W / 2 + 6), z = p.z + s1.z * sd * (W / 2 + 6); let clear = true; for (let j = 0; j < N; j++) { const d = Math.min(Math.abs(i - j), N - Math.abs(i - j)); if (d > 40 && Math.hypot(P[j].x - x, P[j].z - z) < W / 2 + 9) { clear = false; break; } }
+        if (clear) { const pr = new THREE.Mesh(new THREE.BoxGeometry(2.2, E[i], 2.2), pierM); pr.position.set(x, E[i] / 2 - .5, z); stg.add(pr); } } } }
+  bakeChunks(stg, scene); }
 // retaining walls under the raised hill section
-{ const wallTex = XS ? XS.wall(canvasTex) : canvasTex(64, 32, (g) => { g.fillStyle = '#8a5a44'; g.fillRect(0, 0, 64, 32); g.strokeStyle = '#6a4030'; g.lineWidth = 2; for (let y = 0; y < 32; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y); g.stroke(); for (let x = (y / 8) % 2 * 8; x < 64; x += 16) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 8); g.stroke(); } } }, true);
+if (!ELEV) { const wallTex = XS ? XS.wall(canvasTex) : canvasTex(64, 32, (g) => { g.fillStyle = '#8a5a44'; g.fillRect(0, 0, 64, 32); g.strokeStyle = '#6a4030'; g.lineWidth = 2; for (let y = 0; y < 32; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y); g.stroke(); for (let x = (y / 8) % 2 * 8; x < 64; x += 16) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 8); g.stroke(); } } }, true);
   for (const lat of [-W / 2 - 8, W / 2 + 8]) { const pos = [], uv = [], idx = []; let k = 0;
     for (let i = HILL_C - HILL_W; i <= HILL_C + HILL_W; i++) { const p = P[i], sd = S[i]; pos.push(p.x + sd.x * lat, -0.1, p.z + sd.z * lat, p.x + sd.x * lat, E[i] + .12, p.z + sd.z * lat); uv.push(i * SEG / 8, 0, i * SEG / 8, Math.max(.1, E[i] / 4));
       if (i < HILL_C + HILL_W) idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); k += 2; }
@@ -148,7 +170,7 @@ function alleyDist(x, z) { const { t, u, L } = alleyUV(x, z); return t < 0 || t 
 // ---------- v19 scenery (buildings, landmarks, sky) ----------
 const brassMat = new THREE.MeshStandardMaterial({ color: 0xe0b04a, metalness: .85, roughness: .28, emissive: 0x402800 });
 const silverMat = new THREE.MeshStandardMaterial({ color: 0xcfd6de, metalness: .9, roughness: .25 });
-const CITY = ({ city: buildCity, ghost: buildGhostTown, stadium: buildStadium, water: buildWaterPark, bayou: buildBayou, reed: buildReedForest }[TRK.scenery] || buildCity)({ scene, P, S, T, N, W, E, alleyDist, alleyUV, ALLEY_A, ALLEY_B, ALLEY_HW, brassMat });
+const CITY = ({ city: buildCity, ghost: buildGhostTown, stadium: buildStadium, water: buildWaterPark, bayou: buildBayou, reed: buildReedForest, school: buildSchool, canyon: buildCanyon, volcano: buildVolcano }[TRK.scenery] || buildCity)({ scene, P, S, T, N, W, E, alleyDist, alleyUV, ALLEY_A, ALLEY_B, ALLEY_HW, brassMat });
 window.__tt_city = CITY.stats;
 
 // ---------- audio ----------
@@ -364,6 +386,27 @@ const PADS = TRK.pads.map(([i, l]) => {
   const rim = new THREE.Mesh(new THREE.TorusGeometry(2.6, .12, 6, 28), brassMat); rim.rotation.x = Math.PI / 2; rim.position.y = .47; g.add(rim);
   g.position.copy(p); scene.add(g); return { x: p.x, z: p.z, g, squash: 0 };
 });
+
+// ---------- v26 note gates: tall glowing arches with a giant music note; driving under one gives everybody a quick tempo boost ----------
+const GATE_COLS = [0xffd34d, 0x40e8ff, 0xff5ad0, 0x7aff6a, 0xff8a3a, 0xb07aff];
+const GATES = (TRK.gates || []).map((i, k) => ({ i, k, col: GATE_COLS[(k + (TRK.gateHue || 0)) % GATE_COLS.length], flash: 0 }));
+{ const stage = new THREE.Group(), noteTex = ['♪', '♫', '♩', '♬'].map(ch => canvasTex(128, 128, g => { g.font = 'bold 112px Georgia, serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.lineWidth = 10; g.strokeStyle = '#1a1030'; g.strokeText(ch, 64, 70); g.fillStyle = '#fff'; g.fillText(ch, 64, 70); }));
+  const stripe = canvasTex(64, 16, g => { for (let x = 0; x < 64; x += 8) { g.fillStyle = (x / 8) % 2 ? '#ffffff' : '#ffd34d'; g.fillRect(x, 0, 8, 16); } });
+  for (const G of GATES) { const p = P[G.i], sd = S[G.i], rot = Math.atan2(T[G.i].x, T[G.i].z), y0 = E[G.i], glow = new THREE.MeshBasicMaterial({ color: G.col }), dark = new THREE.MeshLambertMaterial({ color: 0x2a2440 });
+    for (const s of [-1, 1]) { const x = p.x + sd.x * s * (W / 2 + 1.6), z = p.z + sd.z * s * (W / 2 + 1.6); const post = new THREE.Mesh(new THREE.CylinderGeometry(.55, .7, 10, 8), dark); post.position.set(x, y0 + 5, z); stage.add(post);
+      const band = new THREE.Mesh(new THREE.CylinderGeometry(.62, .62, 7.5, 8, 1, true), glow); band.position.set(x, y0 + 5.2, z); stage.add(band); }
+    const bar = new THREE.Mesh(new THREE.BoxGeometry(W + 4.6, 1.2, 1.2), glow); bar.position.set(p.x, y0 + 10.2, p.z); bar.rotation.y = rot; stage.add(bar);
+    // staff lines across the arch (five thin bars) — reads as a music staff from the driver's seat
+    for (let l = 0; l < 5; l++) { const m = new THREE.Mesh(new THREE.BoxGeometry(W + 3, .12, .12), dark); m.position.set(p.x, y0 + 11.4 + l * .45, p.z); m.rotation.y = rot; stage.add(m); }
+    const strip = new THREE.Mesh(new THREE.PlaneGeometry(W, 2.4), new THREE.MeshBasicMaterial({ map: stripe, transparent: true, opacity: .85, depthWrite: false })); strip.rotation.set(-Math.PI / 2, 0, rot); strip.position.set(p.x, y0 + .09, p.z); scene.add(strip);
+    const note = new THREE.Mesh(new THREE.PlaneGeometry(5, 5), new THREE.MeshBasicMaterial({ map: noteTex[G.k % 4], color: G.col, transparent: true, side: THREE.DoubleSide, depthWrite: false })); note.position.set(p.x, y0 + 14.6, p.z); note.rotation.y = rot; scene.add(note);
+    G.note = note; G.y = note.position.y; G.rot = rot; }
+  bakeChunks(stage, scene); }
+function gateCross(c, prev) { if (!GATES.length || c.alley) return; for (const G of GATES) { const a = (prev - G.i + N) % N, b = (c.idx - G.i + N) % N; if (!(a > N - 12 && b < 12)) continue; if (Math.abs(c.lat) > W / 2 + 2 || c.y > 9) continue;
+    c.boost = Math.max(c.boost, .9); c.v = Math.max(c.v, c.top * 1.06); if (c.isPlayer) { G.flash = 1; race.stats.gates = (race.stats.gates || 0) + 1; race.style += 30; band(.05); c.meter = Math.min(1, c.meter + .06); if (RSFX && RSFX.gate) RSFX.gate(G.k); } else if (nearPlayer(c, 40)) G.flash = Math.max(G.flash, .4);
+    window.__tt.gateHits = window.__tt.gateHits || { player: 0, ai: 0 }; window.__tt.gateHits[c.isPlayer ? 'player' : 'ai']++; } }
+function stepGates(dt, t) { for (const G of GATES) { G.flash = Math.max(0, G.flash - dt * 2); const k = 1 + G.flash * .6; G.note.scale.set(k, k, 1); G.note.position.y = G.y + Math.sin(t * 2.2 + G.k) * .5; G.note.rotation.y = G.rot + Math.sin(t * 1.3 + G.k) * .5; } }
+
 
 // ---------- hazards ----------
 const blk = new THREE.MeshStandardMaterial({ color: 0x202024, metalness: .7, roughness: .4 });
@@ -744,7 +787,8 @@ function progress(c) { return c.finished ? 1e7 - c.finishTime : c.lap * N + c.id
 function gap(a, b) { let d = (progress(b) - progress(a)); return d * SEG; } // + if b is ahead of a (units)
 function rubber(c) { const d = (progress(player) - progress(c)) / N; return 1 + (d < 0 ? Math.max(-DIFF.rubAhead, d * .35) : Math.min(DIFF.rubBehind, d * .3)); } // laps: <0 = rival ahead of the player -> eases off
 function playerHelp() { if (!DIFF.help) return 1; let lead = -1e9; for (const o of cars) if (!o.isPlayer) lead = Math.max(lead, o.finished ? progress(player) + N : progress(o)); return 1 + DIFF.help * Math.max(0, Math.min(1, (lead - progress(player)) / N * 5)); }
-function nearPlayer(c, r) { return Math.hypot(c.x - player.x, c.z - player.z) < r; }
+function nearPlayer(c, r) { return Math.hypot(c.x - player.x, c.z - player.z) < r && Math.abs(wy(c) - wy(player)) < 6; }
+function wy(c) { return (c.alley ? 0 : E[c.idx]) + c.y; } // v26 world height (bridges / climbs)
 
 function aiControl(c, dt) {
   // returns { steer, drift, trick, gas }
@@ -842,6 +886,7 @@ function stepCar(c, dt) {
   if (c.boost > 0) top *= 1.28;
   if (c.dash > 0) top *= 1.42;
   if (c.finished) top *= .5;
+  if (ELEV && !c.alley && !c.air) { const gr = GRADE[c.idx]; top *= 1 - Math.max(-.12, Math.min(.2, gr * 1.15)); if (!c.finished) c.v -= gr * (gr > 0 ? 16 : 11) * dt; } // v26 climbs are slower, drops faster (capped)
   if (!c.air) {
     if (c.drift) c.v -= (c.v > top ? (c.v - top) * 1.5 : 0) * dt + c.v * .05 * dt; // drifting: brake doesn't slow much
     else if (brake) c.v -= 45 * dt;
@@ -871,7 +916,7 @@ function stepCar(c, dt) {
   const prev = c.idx;
   Object.assign(au, alleyUV(c.x, c.z));
   const inAlleyZone = au.t > ALLEY.t0 - .01 && au.t < ALLEY.t1 + .01 && Math.abs(au.u) < ALLEY_HW + .4;
-  if (!c.alley && inAlleyZone && au.t < ALLEY.t0 + .1) { c.alley = true; if (c.isPlayer && RSFX) RSFX.shortcut(); }
+  if (!c.alley && inAlleyZone && au.t < ALLEY.t0 + .1 && E[c.idx] < 1.5) { c.alley = true; if (c.isPlayer && RSFX) RSFX.shortcut(); }
   if (c.alley) {
     if (au.t > ALLEY.t1 + .01 || au.t < ALLEY.t0 - .02) { c.alley = false; if (au.t > ALLEY.t1) { c.idx = ALLEY_B - 6; c.idx = nearestIdx(c); if (c.isPlayer) { race.stats.alley++; band(.1); race.style += 80; toast('shortcut!'); } } }
     else {
@@ -883,12 +928,14 @@ function stepCar(c, dt) {
   }
   if (!c.alley) {
     c.idx = nearestIdx(c);
+    { const d = Math.hypot(P[c.idx].x - c.x, P[c.idx].z - c.z); if (d > W * 1.5 && !nearAlleyMouth(c)) { const j = c.idx; c.x = P[j].x; c.z = P[j].z; c.h = c.vh = Math.atan2(T[j].x, T[j].z); c.v *= .5; c.px = c.pz = 0; window.__tt.recovers = (window.__tt.recovers || 0) + 1; } } // safety respawn onto the local road (never jumps branches)
     c.lat = (c.x - P[c.idx].x) * S[c.idx].x + (c.z - P[c.idx].z) * S[c.idx].z;
     const LIM = W / 2 + 6.5;
     if (Math.abs(c.lat) > LIM && !inAlleyZone && !(Math.abs(au.u) < ALLEY_HW + 1.5 && au.t > -.02 && au.t < 1.02)) { const push = c.lat - Math.sign(c.lat) * LIM; c.x -= S[c.idx].x * push; c.z -= S[c.idx].z * push; c.v *= 1 - (1 - c.tough) * .08; c.h += angDiff(Math.atan2(T[c.idx].x, T[c.idx].z), c.h) * .15; c.vh = c.h; if (c.drift) { c.drift = 0; c.tier = 0; c.driftLock = true; } if (c.isPlayer) wallHit(c); }
   }
   if (prev > N * .85 && c.idx < N * .15) { if (c.maxIdx > N * .5) { c.lap++; c.maxIdx = c.idx; onLap(c); } }
   else if (!(prev < N * .15 && c.idx > N * .85)) c.maxIdx = Math.max(c.maxIdx, c.idx);
+  gateCross(c, prev);
 
   // --- vertical: ramp, pads, air, landing ---
   if (!c.air) {
@@ -900,7 +947,7 @@ function stepCar(c, dt) {
       if (d >= w.len && d < w.len + 5 && c.v > 8) { launch(c, 7 + c.v * .06); c.warp = true; c.warpV0 = c.v; window.__tt.warpHits = window.__tt.warpHits || { player: 0, ai: 0 }; window.__tt.warpHits[c.isPlayer ? 'player' : 'ai']++; if (c.isPlayer) { race.stats.warps++; if (RSFX) RSFX.warp(); if (AC) for (let k = 0; k < 4; k++) brass(mf(67 + k * 4), AC.currentTime + k * .04, .12, .1); } } else c.y = 0; }
     else if (c.onRamp) { c.onRamp = false; if (c.idx >= RAMP_I + RAMP_LEN && c.idx < RAMP_I + RAMP_LEN + 4 && c.v > 8) launch(c, 4 + c.v * .2); else c.y = 0; }
     else c.y = 0;
-    for (const pd of PADS) if (Math.hypot(pd.x - c.x, pd.z - c.z) < 2.6 && !c.air) { launch(c, 12 + c.v * .04); pd.squash = 1; if (nearPlayer(c, 30) && AC) { drum(AC.currentTime, 'kick'); drum(AC.currentTime + .02, 'kick'); } if (c.isPlayer && RSFX) RSFX.whoosh(.09, .5); }
+    for (const pd of PADS) if (Math.hypot(pd.x - c.x, pd.z - c.z) < 2.6 && !c.air && Math.abs(E[c.idx] - pd.y) < 2.5) { launch(c, 12 + c.v * .04); pd.squash = 1; if (nearPlayer(c, 30) && AC) { drum(AC.currentTime, 'kick'); drum(AC.currentTime + .02, 'kick'); } if (c.isPlayer && RSFX) RSFX.whoosh(.09, .5); }
   } else {
     c.vy -= 30 * dt; c.y += c.vy * dt;
     if (c.trick >= 0) c.trick = Math.min(1, c.trick + dt / .6);
@@ -915,9 +962,9 @@ function stepCar(c, dt) {
   // --- hazards ---
   for (const s of stands) {
     if (s.down) continue; const dx = s.x - c.x, dz = s.z - c.z;
-    if (dx * dx + dz * dz < 2.2 * 2.2 && c.y < 2.5) { s.down = 1; s.vx = Math.sin(c.vh) * c.v * .6 + rand(-3, 3); s.vz = Math.cos(c.vh) * c.v * .6 + rand(-3, 3); s.spin = rand(-8, 8); c.v *= .45 + .5 * c.tough; if (c.isPlayer) crash(c, 'bonk', .2); }
+    if (dx * dx + dz * dz < 2.2 * 2.2 && c.y < 2.5 && Math.abs(E[c.idx] - s.y) < 2.5) { s.down = 1; s.vx = Math.sin(c.vh) * c.v * .6 + rand(-3, 3); s.vz = Math.cos(c.vh) * c.v * .6 + rand(-3, 3); s.spin = rand(-8, 8); c.v *= .45 + .5 * c.tough; if (c.isPlayer) crash(c, 'bonk', .2); }
   }
-  for (const t of timps) { if (!t.g.visible) continue; if (Math.hypot(t.x - c.x, t.z - c.z) < 2.6 && c.y < 2) { c.v *= .35 + .4 * c.tough; const sx = S[c.idx].x, sz = S[c.idx].z, sg = c.lat >= t.lat ? 1 : -1; c.px += sx * sg * 8; c.pz += sz * sg * 8; t.wait = rand(1, 2); t.s = TIMP_TOP; t.g.visible = false; if (c.isPlayer) { race.stats.timpHits++; crash(c, 'timpani!', .3); if (AC) { drum(AC.currentTime, 'kick'); brass(98, AC.currentTime, .4, .2, master, 500); } } } }
+  for (const t of timps) { if (!t.g.visible) continue; if (Math.hypot(t.x - c.x, t.z - c.z) < 2.6 && c.y < 2 && Math.abs(E[c.idx] + 1.6 - t.y) < 2.5) { c.v *= .35 + .4 * c.tough; const sx = S[c.idx].x, sz = S[c.idx].z, sg = c.lat >= t.lat ? 1 : -1; c.px += sx * sg * 8; c.pz += sz * sg * 8; t.wait = rand(1, 2); t.s = TIMP_TOP; t.g.visible = false; if (c.isPlayer) { race.stats.timpHits++; crash(c, 'timpani!', .3); if (AC) { drum(AC.currentTime, 'kick'); brass(98, AC.currentTime, .4, .2, master, 500); } } } }
   { const b = metroBob(); if (Math.hypot(b.x - c.x, b.z - c.z) < 2.3 && b.y - c.y < 3.2) { if (c.hitT > .8) { c.v *= .4 + .3 * c.tough; const sg = Math.sign(c.lat - b.lat) || 1; c.px += S[METRO_I].x * sg * 10; c.pz += S[METRO_I].z * sg * 10; if (c.isPlayer) { race.stats.metroHits++; crash(c, 'tick-tock bonk', .3); } c.hitT = 0; } } }
 }
 function nearAlleyMouth(c) { const { t, u } = alleyUV(c.x, c.z); return t > ALLEY.t0 - .12 && t < ALLEY.t0 + .02 && Math.abs(u) < ALLEY_HW + 6; }
@@ -936,7 +983,7 @@ function land(c) {
 function wallHit(c) { if (c.wallT > 1) { band(-.05); } c.wallT = 0; c.hitT = 0; }
 function crash(c, msg, bandLoss) { if (c.hitT > .6) { race.style -= 50; race.stats.crashes++; c.meter = Math.max(0, c.meter - .25); band(-bandLoss); toast(msg); if (AC) brass(110, AC.currentTime, .3, .25, master, 900); } c.hitT = 0; if (c.drift) c.driftLock = true; c.drift = 0; c.tier = 0; }
 function blastTargets(c) { const B = BLASTS[c.type]; if (!B) return []; const sh = Math.sin(c.h), ch = Math.cos(c.h);
-  return cars.filter(o => { if (o === c || o.finished || o.air) return false; const dx = o.x - c.x, dz = o.z - c.z, f = dx * sh + dz * ch, s = -dx * ch + dz * sh; return B.hit(f, s, Math.hypot(dx, dz)); }); }
+  return cars.filter(o => { if (o === c || o.finished || o.air || Math.abs(wy(o) - wy(c)) > 4) return false; const dx = o.x - c.x, dz = o.z - c.z, f = dx * sh + dz * ch, s = -dx * ch + dz * sh; return B.hit(f, s, Math.hypot(dx, dz)); }); }
 function castBlast(c) { const B = BLASTS[c.type]; if (!B || race.state !== 'race') return 0; const sh = Math.sin(c.h), ch = Math.cos(c.h), y = c.y + E[c.idx], X = B.fx;
   // visible sound-wave shape
   if (c.type === 'trumpet' || c.type === 'clarinet') for (let k = 1; k <= 4; k++) ring(c.x + sh * k * (c.type === 'clarinet' ? 7 : 5.5), y, c.z + ch * k * (c.type === 'clarinet' ? 7 : 5.5), B.col, c.type === 'clarinet' ? .8 : .8 + k * .7, c.h);
@@ -1067,7 +1114,7 @@ function startConfetti(id = 'confetti') { const cv = $(id), g = cv.getContext('2
     requestAnimationFrame(step); }; requestAnimationFrame(step); }
 function collide() {
   for (let i = 0; i < cars.length; i++) for (let j = i + 1; j < cars.length; j++) {
-    const a = cars[i], b = cars[j]; if (Math.abs(a.y - b.y) > 2) continue;
+    const a = cars[i], b = cars[j]; if (Math.abs(wy(a) - wy(b)) > 2) continue;
     const dx = b.x - a.x, dz = b.z - a.z, d2 = dx * dx + dz * dz, R = 2.6;
     if (d2 < R * R && d2 > 1e-6) {
       const d = Math.sqrt(d2), o = (R - d) / 2, nx = dx / d, nz = dz / d;
@@ -1100,7 +1147,7 @@ function sim(dt) {
     const col = SPARK[c.tier], bx = -Math.sin(c.h) * 2, bz = -Math.cos(c.h) * 2, rx = Math.cos(c.h), rz = -Math.sin(c.h), gy = E[c.idx] + .3;
     for (const sd of [-1, 1]) if (Math.random() < (c.isPlayer ? .9 : .4)) emit(c.x + bx + rx * sd * 1.1, gy, c.z + bz + rz * sd * 1.1, rand(-3, 3) - Math.sin(c.vh) * 4, rand(2, 5), rand(-3, 3) - Math.cos(c.vh) * 4, col, rand(.2, .4));
   }
-  stepParticles(dt); stepRings(dt);
+  stepParticles(dt); stepRings(dt); stepGates(dt, performance.now() / 1000);
 }
 
 // ---------- render loop ----------
@@ -1124,6 +1171,7 @@ function syncMeshes() {
   const py = (player.alley ? 0 : E[player.idx]) + player.y * .7;
   const want = new THREE.Vector3(player.x, py, player.z).addScaledVector(f, -11.5); want.y += 5;
   const look = new THREE.Vector3(player.x, py + 1.6, player.z).addScaledVector(f, 7);
+  if (ELEV && !player.alley) { const bi = (player.idx - 5 + N) % N, ai = (player.idx + 3) % N; want.y = Math.max(py + 3.6, E[bi] + 4.4 + player.y * .7) + .6; look.y = E[ai] + 1.6 + player.y * .7; } // v26 camera follows the slope
   if (race.state === 'done' && race.results) { const a = Math.min(2.6, (race.t - finishAt) * 1.1) + player.h, R = 9 - Math.min(2, (race.t - finishAt)); // swing around to the front of the car
     want.set(player.x - Math.sin(a) * R, py + 3.2, player.z - Math.cos(a) * R); look.set(player.x, py + 1.4, player.z); }
   if (!camInit) { camPos.copy(want); camLook.copy(look); camInit = true; }
@@ -1144,10 +1192,15 @@ function drawMinimap() {
   if (cv.width !== sz || !MM.bg) { cv.width = cv.height = sz; MM.bg = document.createElement('canvas'); MM.bg.width = MM.bg.height = sz; const g = MM.bg.getContext('2d');
     g.lineJoin = g.lineCap = 'round'; g.beginPath(); P.forEach((p, i) => i ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z))); g.closePath();
     g.strokeStyle = 'rgba(0,0,0,.55)'; g.lineWidth = sz * .075; g.stroke(); g.strokeStyle = '#d8d4e0'; g.lineWidth = sz * .045; g.stroke();
+    // v26 bridges: redraw the upper road over the lower one with a dark edge, so a figure 8 reads as an overpass
+    for (let i0 = 0; i0 < N; i0++) { if (!UNDER[i0] || UNDER[(i0 - 1 + N) % N]) continue; let i1 = i0; while (UNDER[(i1 + 1) % N] && i1 - i0 < N) i1++; const a = (i0 - 14 + N) % N, n = i1 - i0 + 28;
+      g.beginPath(); for (let k = 0; k <= n; k++) { const p = P[(a + k) % N]; k ? g.lineTo(X(p.x), Z(p.z)) : g.moveTo(X(p.x), Z(p.z)); } g.strokeStyle = 'rgba(0,0,0,.8)'; g.lineWidth = sz * .085; g.stroke(); g.strokeStyle = '#f4f0fa'; g.lineWidth = sz * .045; g.stroke(); }
     // shortcut alley (cyan dashed)
     g.setLineDash([sz * .03, sz * .02]); g.strokeStyle = '#4ff'; g.lineWidth = sz * .03; g.beginPath(); g.moveTo(X(ALLEY.a.x), Z(ALLEY.a.z)); g.lineTo(X(ALLEY.b.x), Z(ALLEY.b.z)); g.stroke(); g.setLineDash([]);
     // warp ramps: small magenta chevrons pointing along the track
     for (const w of WARPS) { const i = w.i, ang = Math.atan2(T[i].z, T[i].x), r = sz * .04; g.save(); g.translate(X(P[i].x), Z(P[i].z)); g.rotate(ang); g.beginPath(); g.moveTo(r, 0); g.lineTo(-r * .7, r * .8); g.lineTo(-r * .2, 0); g.lineTo(-r * .7, -r * .8); g.closePath(); g.fillStyle = '#ff4fd8'; g.fill(); g.lineWidth = sz * .008; g.strokeStyle = '#fff'; g.stroke(); g.restore(); }
+    // v26 note gates: short coloured bars across the road
+    for (const G of GATES) { const i = G.i, s1 = S[i]; g.strokeStyle = '#' + G.col.toString(16).padStart(6, '0'); g.lineWidth = sz * .022; g.beginPath(); g.moveTo(X(P[i].x - s1.x * 20), Z(P[i].z - s1.z * 20)); g.lineTo(X(P[i].x + s1.x * 20), Z(P[i].z + s1.z * 20)); g.stroke(); }
     // start/finish tick
     const s0 = S[0]; g.strokeStyle = '#fff'; g.lineWidth = sz * .018; g.beginPath(); g.moveTo(X(P[0].x - s0.x * 22), Z(P[0].z - s0.z * 22)); g.lineTo(X(P[0].x + s0.x * 22), Z(P[0].z + s0.z * 22)); g.stroke(); }
   ctx.clearRect(0, 0, sz, sz); ctx.drawImage(MM.bg, 0, 0);
@@ -1158,7 +1211,7 @@ function drawMinimap() {
   ctx.save(); ctx.translate(x, z); ctx.rotate(Math.atan2(Math.cos(player.h), Math.sin(player.h))); const r = sz * .075; // screen angle of heading (dx=sin h, dz=cos h)
   ctx.beginPath(); ctx.moveTo(r, 0); ctx.lineTo(-r * .7, r * .62); ctx.lineTo(-r * .35, 0); ctx.lineTo(-r * .7, -r * .62); ctx.closePath(); ctx.fillStyle = pc; ctx.fill(); ctx.lineWidth = sz * .016; ctx.strokeStyle = '#fff'; ctx.stroke(); ctx.restore();
 }
-window.__tt.minimap = drawMinimap; window.__tt.WARPS = WARPS;
+window.__tt.minimap = drawMinimap; window.__tt.WARPS = WARPS; window.__tt.GATES = GATES;
 function hud() { { const bp = $('bpause'), on = race.state === 'race' || race.state === 'count'; if (bp.dataset.on !== '' + on) { bp.dataset.on = on; bp.style.display = on ? '' : 'none'; } }
   const order = [...cars].sort((a, b) => progress(b) - progress(a)); race.place = order.indexOf(player) + 1;
   if (race.state === 'race') { if (race.place < race.lastPlace) { race.stats.passes++; race.style += 75; band(.1); if (RSFX) RSFX.place(race.place); window.__tt.placeStings = (window.__tt.placeStings || 0) + 1; } race.lastPlace = race.place; }

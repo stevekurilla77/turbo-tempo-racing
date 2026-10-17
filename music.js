@@ -59,6 +59,34 @@ export const THEMES = {
     { k: 'mel', v: 'flute', vol: .085, sec: 3, m: 'F#5 . A5 . D6 . E6 F#6 | G6 . F#6 E6 D6 . B5 . | E6 . G5 . B5 . E6 D6 | C#6 . A5 . E5 . - - | D6 . F#6 . B6 . A6 F#6 | G6 . E6 . D6 B5 G5 B5 | A5 B5 C#6 E6 G#6 . A6 . | F#6 . D6 . A5 . - -' },
     { k: 'mel', v: 'oboe', vol: .06, sec: 4, m: 'D5 . . . C#5 . . . | B4 . . . D5 . . . | G4 . . . B4 . . . | A4 . C#5 . E5 . . . | F#5 . . . D5 . . . | B4 . . . G4 . . . | E5 . . . C#5 . . . | D5 . . . . . . .' },
     { k: 'mel', v: 'clarinet', vol: .035, sec: 5, oct: -12, same: 1 } ] },
+  // v26 School Halls: peppy school pep band in C — marching snare cadence, pitched bass drums, claps, xylophone hook, trumpet counter, glockenspiel.
+  school: { name: 'Hallway Hustle', bpm: 144, chords: ['C', 'F', 'G7', 'C', 'Am', 'F', 'D7', 'G7'], layers: [
+    { k: 'drum', v: 'snare', p: 'x.o.x.oox.o.x.rr', fill: 'rrrrrrrrx.x.x.x.', sec: 1 }, { k: 'drum', v: 'bd3', p: 'x.......x.....x.', sec: 1 }, { k: 'drum', v: 'bd1', p: '....x.......x...', sec: 1 },
+    { k: 'drum', v: 'click', p: 'x.x.x.x.x.x.x.x.', sec: 2 }, { k: 'drum', v: 'clap', p: '....x.......x...', sec: 2 }, { k: 'drum', v: 'crash', p: 'x...............', bars: [0, 4], sec: 4 },
+    { k: 'bass', v: 'tuba', p: 'R...5...R.5.8...', vol: .2, sec: 1 },
+    { k: 'chord', v: 'stab', p: '..x...x...x...x.', oct: 12, dur: 1, vol: .035, sec: 2 },
+    { k: 'mel', v: 'xylo', vol: .12, sec: 3, m: 'E5 G5 C6 . B5 C6 D6 . | C6 A5 F5 . A5 C6 A5 . | B5 . G5 . D6 . B5 G5 | C6 . E6 . C6 . - - | A5 . C6 E6 D6 C6 A5 . | F5 . A5 . C6 . F6 . | F#5 A5 D6 . C6 . A5 F#5 | G5 . B5 . D6 . G5 .' },
+    { k: 'mel', v: 'trumpet', vol: .06, sec: 4, m: 'C5 . . . E5 . G5 . | F5 . . . A5 . . . | G5 . . . F5 . D5 . | E5 . . . . . - - | E5 . . . A5 . . . | C6 . . . A5 . . . | D5 . . . F#5 . A5 . | B5 . . . G5 . . .' },
+    { k: 'arp', v: 'bells', p: '0.2.1.2.0.2.1.2.', oct: 36, vol: .025, sec: 5 } ] },
+  // v26 Drumline Desert Canyon: echoing desert drumline in A minor — staggered quad toms, marching bass drum, shaker, marimba ostinato, horn call answered by an echo flute.
+  canyon: { name: 'Echo Canyon Cadence', bpm: 120, swing16: .06, chords: ['Am', 'G', 'F', 'E', 'Am', 'G', 'D', 'E7'], layers: [
+    { k: 'drum', v: 'bd2', p: 'x.....x...x.....', sec: 1 }, { k: 'drum', v: 'snare', p: 'o.ox..o.o.ox..or', fill: 'x.x.rrrrx.x.rrrr', sec: 1 }, { k: 'drum', v: 'q1', p: '..x.......x.....', sec: 1 }, { k: 'drum', v: 'q2', p: '...x.....x..x...', sec: 2 },
+    { k: 'drum', v: 'q3', p: '.....x.x......x.', sec: 2 }, { k: 'drum', v: 'q4', p: '........x......x', sec: 2 }, { k: 'drum', v: 'shaker', p: 'xoxoxoxoxoxoxoxo', sec: 2 }, { k: 'drum', v: 'cowbell', p: 'x.....x.....x...', sec: 4 },
+    { k: 'bass', v: 'pluckbass', p: 'R..R..5.R..R..8.', vol: .25, sec: 1 },
+    { k: 'arp', v: 'marimba', p: '0.1.2.1.0.1.2.3.', oct: 12, vol: .056, sec: 2 },
+    { k: 'mel', v: 'horn', vol: .088, sec: 3, m: 'A4 . . . C5 . E5 . | D5 . . . B4 . G4 . | A4 . C5 . F5 . E5 . | E5 . . . G#4 . B4 . | A4 . . . E5 . A5 . | G5 . E5 . D5 . B4 . | A4 . F#4 . A4 . D5 . | E5 . . . - - - -' },
+    { k: 'mel', v: 'flute', vol: .056, sec: 4, m: '- - E6 . - - A5 . | - - D6 . - - G5 . | - - C6 . - - A5 . | - - B5 . - - G#5 . | - - E6 . - - C6 . | - - D6 . - - B5 . | - - A5 . - - F#5 . | - - G#5 . B5 . E6 .' },
+    { k: 'mel', v: 'xylo', vol: .062, sec: 5, oct: 12, same: 1 } ] },
+  // v26 Thunder Volcano: big taiko + timpani "thunder drums" in D minor — pounding low-brass ostinato, choir pad, trombone riff, heroic trumpet, rumbles and cymbal swells.
+  volcano: { name: 'Thunder Drums', bpm: 152, chords: ['Dm', 'Dm', 'Bb', 'C', 'Dm', 'Gm', 'A7', 'A7'], layers: [
+    { k: 'drum', v: 'taiko', p: 'x.....x...x.x...', dv: .55, sec: 1 }, { k: 'drum', v: 'snare', p: '....x..x....x.rr', fill: 'rrrrrrrrrrrrx.x.', sec: 1 }, { k: 'drum', v: 'bd3', p: 'x...x...x...x...', dv: .6, sec: 1 },
+    { k: 'drum', v: 'q1', p: '......x.......x.', sec: 2 }, { k: 'drum', v: 'q3', p: '.......x.......x', sec: 2 }, { k: 'drum', v: 'crash', p: 'x...............', bars: [0, 4], sec: 3 }, { k: 'drum', v: 'swell', p: 'x...............', bars: [7], sec: 3 },
+    { k: 'drum', v: 'thunder', p: 'x...............', bars: [0], dv: .6, sec: 4 },
+    { k: 'bass', v: 'tuba', p: 'R.R.R.5.R.R.b.8.', vol: .12, sec: 1 },
+    { k: 'chord', v: 'choir', p: 'x...............', oct: 12, dur: 10, vol: .011, sec: 2 },
+    { k: 'mel', v: 'trombone', vol: .042, sec: 3, m: 'D4 . F4 . A4 . D5 . | C5 . A4 . F4 . D4 . | Bb3 . D4 . F4 . Bb4 . | C5 . E4 . G4 . C5 . | D5 . . F5 E5 . D5 . | G4 . Bb4 . D5 . G5 . | A4 . C#5 . E5 . A5 . | G5 F5 E5 D5 C#5 . A4 .' },
+    { k: 'mel', v: 'trumpet', vol: .039, sec: 4, m: 'A5 . . . F5 . D5 . | E5 . . . C5 . A4 . | F5 . . . D5 . Bb4 . | G5 . . . E5 . C5 . | A5 . . . D6 . A5 . | Bb5 . . . G5 . D5 . | C#6 . . . A5 . E5 . | A5 . . . . . - -' },
+    { k: 'arp', v: 'timpani', p: '0.......0...0.0.', oct: 0, vol: .096, sec: 5 } ] },
 };
 for (const th of Object.values(THEMES)) { th.ch = th.chords.map(chord); th.layers.forEach((L, i) => { if (L.k === 'mel') L.ev = L.same ? th.layers.find(x => x.k === 'mel' && x.m).ev : mel(L.m); }); }
 
@@ -89,16 +117,39 @@ export function createVoices(AC, out) {
     marimba(f, t, d, v) { const g = env(t, .002, v, .2); osc('sine', f, t, t + .25, g); osc('sine', f * 4, t, t + .1, env(t, .001, v * .3, .06)); },
     steel(f, t, d, v) { const g = env(t, .004, v, .55); osc('sine', f, t, t + .6, g); osc('sine', f * 2.005, t, t + .45, env(t, .004, v * .5, .35)); osc('sine', f * 3.98, t, t + .25, env(t, .002, v * .22, .18)); },
     slap(f, t, d, v) { const g = env(t, .004, v, Math.max(.12, d)), lp = filt('lowpass', 2400, 4, g); lp.frequency.setValueAtTime(2400, t); lp.frequency.exponentialRampToValueAtTime(260, t + .12); osc('sawtooth', f, t, t + d + .15, lp); osc('sine', f, t, t + d + .15, g); },
+    // v26/v27 voices
+    timpani(f, t, d, v) { const g = env(t, .004, v, Math.max(.5, d * 1.4)), o = osc('sine', f * 1.5, t, t + d * 1.5 + .3, g); o.frequency.setValueAtTime(f * 1.5, t); o.frequency.exponentialRampToValueAtTime(f, t + .06); osc('triangle', f * 2.01, t, t + .3, env(t, .003, v * .3, .2));
+      const n = AC.createBufferSource(); n.buffer = noise(); n.connect(filt('lowpass', 500, 0, env(t, .002, v * .6, .08))); n.start(t); n.stop(t + .1); },
+    xylo(f, t, d, v) { const g = env(t, .001, v, .16); osc('sine', f, t, t + .2, g); osc('sine', f * 3.01, t, t + .08, env(t, .001, v * .5, .05)); osc('triangle', f * 2, t, t + .12, env(t, .001, v * .3, .08)); },
+    synth(f, t, d, v) { const g = sustain(t, d, v, .01), lp = filt('lowpass', 900, 6, g); lp.frequency.setValueAtTime(900, t); lp.frequency.linearRampToValueAtTime(4200, t + .04); lp.frequency.exponentialRampToValueAtTime(1500, t + d + .05); osc('sawtooth', f, t, t + d + .08, lp, -8); osc('sawtooth', f, t, t + d + .08, lp, 8); osc('square', f / 2, t, t + d + .08, lp); },
+    pad(f, t, d, v) { const g = sustain(t, d, v, Math.min(.3, d * .4)), lp = filt('lowpass', 1800, 0, g); for (const dt of [-12, 0, 12]) osc('sawtooth', f, t, t + d + .1, lp, dt); },
+    guitar(f, t, d, v) { const g = env(t, .004, v, Math.max(.18, d)), ws = AC.createWaveShaper(), cur = new Float32Array(256); for (let i = 0; i < 256; i++) { const x = i / 128 - 1; cur[i] = Math.tanh(x * 5); } ws.curve = cur; const lp = filt('lowpass', 2600, 1, g); ws.connect(lp); const pre = AC.createGain(); pre.gain.value = 1.4; pre.connect(ws);
+      osc('sawtooth', f, t, t + d + .2, pre); osc('sawtooth', f * 1.498, t, t + d + .2, pre, 4); },
+    synthbass(f, t, d, v) { const g = env(t, .004, v, Math.max(.14, d * .9)), lp = filt('lowpass', 700, 8, g); lp.frequency.setValueAtTime(1600, t); lp.frequency.exponentialRampToValueAtTime(260, t + .16); osc('sawtooth', f, t, t + d + .15, lp); osc('square', f / 2, t, t + d + .15, filt('lowpass', 300, 0, g)); },
+    choir(f, t, d, v) { const g = sustain(t, d, v, .12); for (const fm of [600, 1050, 2400]) { const b = filt('bandpass', fm, 5, g); const o = osc('sawtooth', f, t, t + d + .1, b); vib(o, t, 4.6, 12, .2); osc('sawtooth', f * 1.004, t, t + d + .1, b); } },
+    celesta(f, t, d, v) { const g = env(t, .002, v, .9); osc('sine', f, t, t + 1, g); osc('sine', f * 2, t, t + .5, env(t, .002, v * .35, .4)); osc('sine', f * 5.02, t, t + .15, env(t, .001, v * .15, .1)); },
+    organ(f, t, d, v) { const g = sustain(t, d, v, .015); for (const [m, a] of [[1, 1], [2, .5], [3, .3], [4, .2]]) { const ga = AC.createGain(); ga.gain.value = a; ga.connect(g); osc('sine', f * m, t, t + d + .08, ga); } },
     pluckbass(f, t, d, v) { const g = env(t, .006, v, Math.max(.15, d)); osc('triangle', f, t, t + d + .2, g); osc('sine', f / 2, t, t + d + .2, g); },
   };
   const D = (t, kind, vel = 1) => {
     if (kind === 'kick' || kind === 'bassdrum' || kind === 'frame' || kind === 'tom' || kind === 'congaH' || kind === 'congaL') {
       const P = { kick: [140, 42, .2, .9], bassdrum: [110, 45, .32, 1], frame: [180, 80, .22, .55], tom: [200, 120, .18, .45], congaH: [380, 330, .14, .32], congaL: [260, 210, .18, .36] }[kind];
       const g = env(t, .002, P[3] * vel, P[2]); const o = osc('sine', P[0], t, t + P[2] + .05, g); o.frequency.setValueAtTime(P[0], t); o.frequency.exponentialRampToValueAtTime(P[1], t + P[2] * .7); return; }
+    if (kind === 'q1' || kind === 'q2' || kind === 'q3' || kind === 'q4' || kind === 'taiko' || kind === 'bd1' || kind === 'bd2' || kind === 'bd3') { // drumline quads (4 pitched toms), taiko, pitched marching bass drums
+      const P = { q1: [420, 330, .12, .38], q2: [340, 270, .13, .4], q3: [270, 210, .15, .42], q4: [210, 160, .17, .44], taiko: [95, 55, .5, 1.1], bd1: [150, 95, .22, .7], bd2: [118, 78, .25, .75], bd3: [92, 60, .28, .8] }[kind];
+      const g = env(t, .002, P[3] * vel, P[2]); const o = osc('sine', P[0], t, t + P[2] + .05, g); o.frequency.setValueAtTime(P[0], t); o.frequency.exponentialRampToValueAtTime(P[1], t + P[2] * .6);
+      const s = AC.createBufferSource(); s.buffer = noise(); s.connect(filt('bandpass', P[0] * 4, 1, env(t, .001, P[3] * vel * .25, .03))); s.start(t); s.stop(t + .05);
+      if (kind === 'taiko') { const s2 = AC.createBufferSource(); s2.buffer = noise(); s2.connect(filt('lowpass', 300, 0, env(t, .002, .5 * vel, .3))); s2.start(t); s2.stop(t + .35); } return; }
+    if (kind === 'clap') { for (const dt of [0, .011, .022]) { const g = env(t + dt, .001, .28 * vel, .06); const s = AC.createBufferSource(); s.buffer = noise(); s.connect(filt('bandpass', 1500, 1.2, g)); s.start(t + dt); s.stop(t + dt + .08); } return; }
+    if (kind === 'cowbell') { const g = env(t, .001, .12 * vel, .18), bp = filt('bandpass', 800, 3, g); osc('square', 562, t, t + .2, bp); osc('square', 845, t, t + .2, bp); return; }
+    if (kind === 'tri') { const g = env(t, .001, .07 * vel, .8); osc('sine', 2794, t, t + .9, g); osc('sine', 4186, t, t + .5, env(t, .001, .03 * vel, .4)); return; }
+    if (kind === 'sleigh') { for (let k = 0; k < 4; k++) { const tt = t + k * .018, g = env(tt, .001, .06 * vel, .12); const s = AC.createBufferSource(); s.buffer = noise(); s.connect(filt('bandpass', 7000 + k * 900, 4, g)); s.start(tt); s.stop(tt + .15); } return; }
+    if (kind === 'thunder') { const g = env(t, .3, .45 * vel, 2.4); const s = AC.createBufferSource(); s.buffer = noise(); s.loop = true; s.connect(filt('lowpass', 180, 1, g)); s.start(t); s.stop(t + 3); return; }
+    if (kind === 'swell') { const g = AC.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.16 * vel, t + .9); g.gain.linearRampToValueAtTime(0, t + 1.05); g.connect(out); const s = AC.createBufferSource(); s.buffer = noise(); s.loop = true; s.connect(filt('highpass', 4500, 0, g)); s.start(t); s.stop(t + 1.1); return; }
     if (kind === 'crash') { const g = env(t, .002, .22 * vel, 1.1); const s = AC.createBufferSource(); s.buffer = noise(); s.connect(filt('highpass', 5000, 0, g)); s.start(t); s.stop(t + .5); return; }
-    const P = { snare: ['bandpass', 1800, .5, .14], brush: ['bandpass', 2600, .2, .18], hat: ['highpass', 7000, .12, .04], ohat: ['highpass', 6500, .12, .22], rim: ['bandpass', 3200, .35, .03], shaker: ['highpass', 6000, .07, .06], tamb: ['bandpass', 8500, .14, .09], ride: ['bandpass', 6000, .1, .25] }[kind];
+    const P = { snare: ['bandpass', 1800, .5, .14], brush: ['bandpass', 2600, .2, .18], hat: ['highpass', 7000, .12, .04], ohat: ['highpass', 6500, .12, .22], rim: ['bandpass', 3200, .35, .03], shaker: ['highpass', 6000, .07, .06], tamb: ['bandpass', 8500, .14, .09], ride: ['bandpass', 6000, .1, .25], click: ['bandpass', 4200, .3, .02], snareHi: ['bandpass', 2600, .45, .1] }[kind];
     if (!P) return; const g = env(t, .001, P[2] * vel, P[3]); const s = AC.createBufferSource(); s.buffer = noise(); s.connect(filt(P[0], P[1], kind === 'rim' ? 6 : 1, g)); s.start(t, Math.random() * .2); s.stop(t + P[3] + .05);
-    if (kind === 'snare') osc('triangle', 190, t, t + .08, env(t, .001, .2 * vel, .06));
+    if (kind === 'snare') osc('triangle', 190, t, t + .08, env(t, .001, .2 * vel, .06)); if (kind === 'snareHi') osc('triangle', 260, t, t + .06, env(t, .001, .18 * vel, .05));
   };
   return { V, D, env, osc, filt, noise, mf };
 }
@@ -119,7 +170,7 @@ export function createMusic(AC, out) {
       const base = 60 / (theme.bpm * fast) / 4;
       while (nextT < now + .15) { const bars = theme.ch.length, bar = Math.floor(step / 16) % bars, s = step % 16, c = chordAt(bar), nc = chordAt(bar + 1), t = nextT, fillBar = bar === bars - 1;
         for (const L of theme.layers) { if (sections < L.sec) continue; if (L.bars && !L.bars.includes(bar)) continue; const vol = L.vol || 1, oct = L.oct || 0;
-          if (L.k === 'drum') { const ch = ((fillBar && L.fill) || L.p)[s]; if (ch === 'x') D(t, L.v, 1); else if (ch === 'o') D(t, L.v, .4); else if (ch === 'r') { D(t, L.v, .7); D(t + base / 2, L.v, .55); } }
+          if (L.k === 'drum') { const ch = ((fillBar && L.fill) || L.p)[s], dv = L.dv || 1; if (ch === 'x') D(t, L.v, dv); else if (ch === 'o') D(t, L.v, .4 * dv); else if (ch === 'r') { D(t, L.v, .7 * dv); D(t + base / 2, L.v, .55 * dv); } }
           else if (L.k === 'bass') { const m = bassNote(c, L.p[s], nc); if (m != null) V[L.v](mf(m - 12 + oct), t, base * 1.8, vol); }
           else if (L.k === 'chord') { const ch = L.p[s]; if (ch === 'x' || ch === 'o') for (const m of c.tones.slice(0, 4)) V[L.v](mf(m + oct), t, base * (L.dur || 1) * 1.6, vol * (ch === 'o' ? .5 : 1)); }
           else if (L.k === 'arp') { const ch = L.p[s]; if (ch >= '0' && ch <= '9') { const i = +ch, tn = c.tones, m = tn[i % tn.length] + 12 * Math.floor(i / tn.length); V[L.v](mf(m + oct), t, base * 1.5, vol); } }

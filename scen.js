@@ -7,7 +7,10 @@ export function kit(ctx, seed0 = 7) {
   let seed = seed0; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647, pick = a => a[Math.floor(rnd() * a.length)];
   const clear = makeClear(P), stage = new THREE.Group(), anim = [], taken = [], LM = {};
   const add = (geo, mat, x, y, z, ry = 0, par = stage, rx = 0, rz = 0) => { const m = new THREE.Mesh(geo, mat); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); par.add(m); return m; };
-  const free = (x, z, r, margin = 8.5) => clear(x, z) > W / 2 + margin + r && alleyDist(x, z) > ALLEY_HW + 4 + r && !taken.some(t => Math.hypot(t[0] - x, t[1] - z) < t[2] + r);
+  // v26: raised road has embankments (1.25 x height) — keep props off them
+  const EG = 40, eg = new Map(); if (ctx.E) P.forEach((p, i) => { if (ctx.E[i] < .3) return; const k = Math.floor(p.x / EG) + ',' + Math.floor(p.z / EG); if (!eg.has(k)) eg.set(k, []); eg.get(k).push(i); });
+  const embOK = (x, z, r) => { if (!eg.size) return true; const gx = Math.floor(x / EG), gz = Math.floor(z / EG); for (let a = -2; a <= 2; a++) for (let b = -2; b <= 2; b++) { const L = eg.get((gx + a) + ',' + (gz + b)); if (L) for (const i of L) { const e = ctx.E[i]; if (Math.hypot(P[i].x - x, P[i].z - z) < W / 2 + 9 + e * 1.25 + r) return false; } } return true; };
+  const free = (x, z, r, margin = 8.5) => clear(x, z) > W / 2 + margin + r && embOK(x, z, r) && alleyDist(x, z) > ALLEY_HW + 4 + r && !taken.some(t => Math.hypot(t[0] - x, t[1] - z) < t[2] + r);
   const site = (i, side, off, r, key) => { for (let tries = 0; tries < 12; tries++) { const sd = tries % 2 ? -side : side, o = off + Math.floor(tries / 2) * 6, j = (i + Math.floor(tries / 2) * 4) % N; const x = P[j].x + S[j].x * sd * o, z = P[j].z + S[j].z * sd * o;
       if (free(x, z, r)) { taken.push([x, z, r]); const s = { x, z, ry: Math.atan2(P[j].x - x, P[j].z - z), j }; if (key) LM[key] = [Math.round(x), Math.round(z), j]; return s; } } return null; };
   const at = (s, par = stage) => { const g = new THREE.Group(); g.position.set(s.x, 0, s.z); g.rotation.y = s.ry; par.add(g); return g; };
@@ -27,5 +30,9 @@ export function kit(ctx, seed0 = 7) {
   const motes = (n, box, y0, y1, col, size = 1.2) => { const pos = new Float32Array(n * 3), ph = []; for (let k = 0; k < n; k++) { pos.set([box[0] + rnd() * (box[1] - box[0]), y0 + rnd() * (y1 - y0), box[2] + rnd() * (box[3] - box[2])], k * 3); ph.push(rnd() * 6.28); }
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); const m = new THREE.PointsMaterial({ color: col, size, transparent: true, opacity: .9, depthWrite: false, fog: true }); const pts = new THREE.Points(g, m); ctx.scene.add(pts);
     const base = pos.slice(); anim.push((dt, t) => { for (let k = 0; k < n; k++) { pos[k * 3] = base[k * 3] + Math.sin(t * .5 + ph[k]) * 3; pos[k * 3 + 1] = base[k * 3 + 1] + Math.sin(t * .9 + ph[k] * 2) * 1.5; pos[k * 3 + 2] = base[k * 3 + 2] + Math.cos(t * .4 + ph[k]) * 3; } g.attributes.position.needsUpdate = true; m.opacity = .6 + .3 * Math.sin(t * 3); }); return pts; };
-  return { inside, rnd, pick, clear, stage, anim, taken, LM, add, free, site, at, roadside, scatter, bbox, center, atlas, textSign, bake, motes };
+  // v26: find an open spot of radius r (optionally inside/outside the loop, and within `maxClear` of the road so it's visible); claims it
+  const spot = (r, { inn = null, maxClear = 1e9, margin = 6, key, tries = 600, pad = 120 } = {}) => { let best = null; for (let k = 0; k < tries; k++) { const x = bx0 - pad + rnd() * (bx1 - bx0 + 2 * pad), z = bz0 - pad + rnd() * (bz1 - bz0 + 2 * pad);
+      if (inn !== null && inside(x, z) !== inn) continue; if (!free(x, z, r, margin)) continue; const c = clear(x, z); if (c > maxClear + r) continue; if (!best || c < best[2]) best = [x, z, c]; }
+    if (!best) return null; taken.push([best[0], best[1], r]); const [x, z] = best; const s = { x, z, ry: Math.atan2(center[0] - x, center[1] - z) }; let bi = 0, bd = 1e12; P.forEach((p, i) => { const d = (p.x - x) ** 2 + (p.z - z) ** 2; if (d < bd) { bd = d; bi = i; } }); s.ry = Math.atan2(P[bi].x - x, P[bi].z - z); s.j = bi; if (key) LM[key] = [Math.round(x), Math.round(z), bi]; return s; };
+  return { spot, inside, rnd, pick, clear, stage, anim, taken, LM, add, free, site, at, roadside, scatter, bbox, center, atlas, textSign, bake, motes };
 }

@@ -32,6 +32,32 @@ export const SURFACES = {
     walk: ct => ct(64, 64, g => { g.fillStyle = '#5a9a3a'; g.fillRect(0, 0, 64, 64); speckle(g, 64, 64, 240, ['#4a8a2a', '#6aaa4a'], 2); speckle(g, 64, 64, 10, ['#fff', '#ffe060', '#ff8ad0'], 3); }, true),
     ramp: ct => ct(256, 64, g => planks(g, 256, 64, 35, 40, 38, 16, true)),
     wall: ct => ct(64, 32, g => { g.fillStyle = '#7a7a70'; g.fillRect(0, 0, 64, 32); speckle(g, 64, 32, 60, ['#5a8a3a', '#6a6a60'], 3); }, true) },
+  // v26 School Halls: polished gym-floor maple with court lines, Tempo Tigers orange/navy curbs, chalk-art sidewalks
+  school: { post: 0xff8a2a,
+    road: ct => ct(256, 256, (g, w, h) => { for (let x = 0; x < w; x += 16) for (let y = (x / 16 % 2) * 24; y < h + 48; y += 48) { g.fillStyle = `hsl(34,${48 + R() * 10}%,${62 + R() * 8}%)`; g.fillRect(x, y - 48, 15, 47); } speckle(g, w, h, 900, ['rgba(120,70,20,.08)', 'rgba(255,255,255,.07)'], 2);
+      g.strokeStyle = 'rgba(20,40,110,.45)'; g.lineWidth = 4; g.beginPath(); g.arc(w / 2, h / 2, 42, 0, 7); g.stroke(); g.fillStyle = 'rgba(20,40,110,.45)'; g.fillRect(0, h / 2 - 2, w, 3); g.fillStyle = '#ff8a2a'; g.fillRect(8, 0, 6, h); g.fillRect(w - 14, 0, 6, h); }, true),
+    curb: ct => ct(8, 64, g => { g.fillStyle = '#ff8a2a'; g.fillRect(0, 0, 8, 32); g.fillStyle = '#1a2a6a'; g.fillRect(0, 32, 8, 32); }, true),
+    walk: ct => ct(64, 64, g => { g.fillStyle = '#c8c4bc'; g.fillRect(0, 0, 64, 64); g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(0, 31, 64, 2); g.fillRect(31, 0, 2, 64); speckle(g, 64, 64, 90, ['rgba(0,0,0,.08)'], 1);
+      g.lineWidth = 2; g.strokeStyle = ['#ff6ad0', '#40c8ff', '#ffd34d'][Math.floor(R() * 3)]; g.beginPath(); g.arc(16, 16, 7, 0, 7); g.stroke(); g.strokeStyle = '#7aff6a'; g.strokeRect(40, 40, 14, 14); }, true),
+    ramp: ct => ct(256, 64, g => { const C = ['#c0303a', '#2a5ab0', '#2a9a4a', '#e8a020', '#7a3ab0', '#e85a20']; for (let x = 0; x < 256; x += 21) { g.fillStyle = C[(x / 21 | 0) % 6]; g.fillRect(x, 0, 20, 64); g.fillStyle = 'rgba(255,255,255,.7)'; g.fillRect(x + 3, 10, 14, 3); g.fillRect(x + 3, 50, 14, 3); } }),
+    wall: ct => ct(64, 32, g => { g.fillStyle = '#9a3a2a'; g.fillRect(0, 0, 64, 32); g.strokeStyle = '#d8c8b8'; g.lineWidth = 1; for (let y = 0; y < 32; y += 8) { g.beginPath(); g.moveTo(0, y); g.lineTo(64, y); g.stroke(); for (let x = (y / 8) % 2 * 8; x < 64; x += 16) { g.beginPath(); g.moveTo(x, y); g.lineTo(x, y + 8); g.stroke(); } } }, true) },
+  // v26 Drumline Desert Canyon: red packed sand with tyre tracks, layered sandstone curbs
+  canyon: { post: 0x8a3a1a,
+    road: ct => ct(256, 256, (g, w, h) => { g.fillStyle = '#c0683e'; g.fillRect(0, 0, w, h); speckle(g, w, h, 3200, ['rgba(90,30,10,.14)', 'rgba(255,200,150,.12)', 'rgba(140,60,30,.15)'], 3);
+      g.fillStyle = 'rgba(90,40,20,.28)'; for (const x of [.2, .27, .73, .8]) g.fillRect(w * x, 0, 8, h); g.fillStyle = 'rgba(255,240,210,.55)'; for (let y = 0; y < h; y += 64) g.fillRect(w / 2 - 3, y, 6, 28); }, true),
+    curb: ct => ct(8, 64, g => { ['#e8b080', '#c06a3a', '#f0d0a0', '#a04a2a'].forEach((c, k) => { g.fillStyle = c; g.fillRect(0, k * 16, 8, 16); }); }, true),
+    walk: ct => ct(64, 64, g => { g.fillStyle = '#d89058'; g.fillRect(0, 0, 64, 64); speckle(g, 64, 64, 260, ['#b86a3a', '#f0b880', '#8a4a2a'], 2); }, true),
+    ramp: ct => ct(256, 64, g => { planks(g, 256, 64, 28, 45, 40, 16, true); g.strokeStyle = '#2a1a10'; g.lineWidth = 3; for (let x = 8; x < 256; x += 64) { g.beginPath(); g.moveTo(x, 0); g.lineTo(x + 48, 64); g.moveTo(x + 48, 0); g.lineTo(x, 64); g.stroke(); } }),
+    wall: ct => ct(64, 32, g => { ['#c06a3a', '#e0a070', '#a8502a', '#d88a50'].forEach((c, k) => { g.fillStyle = c; g.fillRect(0, k * 8, 64, 8); }); }, true) },
+  // v26 Thunder Volcano: black basalt with glowing lava cracks, hazard-striped curbs, ember ash
+  volcano: { post: 0x2a1a1a,
+    road: ct => ct(256, 256, (g, w, h) => { g.fillStyle = '#2a2428'; g.fillRect(0, 0, w, h); speckle(g, w, h, 2600, ['rgba(255,255,255,.05)', 'rgba(0,0,0,.25)', 'rgba(120,40,20,.12)'], 3);
+      g.lineCap = 'round'; for (let k = 0; k < 9; k++) { let x = R() * w, y = R() * h; g.strokeStyle = 'rgba(255,110,30,.75)'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x, y); for (let s = 0; s < 6; s++) { x += (R() - .5) * 30; y += (R() - .5) * 30; g.lineTo(x, y); } g.stroke(); g.strokeStyle = 'rgba(255,220,120,.6)'; g.lineWidth = 1; g.stroke(); }
+      g.fillStyle = 'rgba(255,170,60,.6)'; for (let y = 0; y < h; y += 64) g.fillRect(w / 2 - 3, y, 6, 30); }, true),
+    curb: ct => ct(8, 64, g => { g.fillStyle = '#1a1a1a'; g.fillRect(0, 0, 8, 64); g.fillStyle = '#ff6a1a'; g.fillRect(0, 0, 8, 22); g.fillRect(0, 32, 8, 22); }, true),
+    walk: ct => ct(64, 64, g => { g.fillStyle = '#3a3034'; g.fillRect(0, 0, 64, 64); speckle(g, 64, 64, 220, ['#4a4044', '#221c1e'], 3); speckle(g, 64, 64, 14, ['#ff7a2a', '#ffc04a'], 2); }, true),
+    ramp: ct => ct(256, 64, g => { g.fillStyle = '#16121a'; g.fillRect(0, 0, 256, 64); for (let x = 0; x < 256; x += 32) { g.fillStyle = '#ff5a1a'; g.fillRect(x + 12, 0, 8, 64); g.fillStyle = '#ffd060'; g.fillRect(x + 15, 0, 2, 64); } }),
+    wall: ct => ct(64, 32, g => { for (let x = 0; x < 64; x += 8) { g.fillStyle = `hsl(330,6%,${14 + R() * 8}%)`; g.fillRect(x, 0, 7, 32); } g.fillStyle = 'rgba(255,100,30,.5)'; g.fillRect(0, 28, 64, 4); }, true) },
 };
 // ---------- shortcut styles ----------
 const sign = (bg, fg, border, font) => (g, txt) => { g.fillStyle = bg; g.fillRect(0, 0, 512, 96); g.strokeStyle = border; g.lineWidth = 7; g.strokeRect(5, 5, 502, 86); g.fillStyle = fg; g.font = font; g.textAlign = 'center'; g.fillText(txt, 256, 62); };
@@ -73,9 +99,43 @@ export const ALLEY_STYLES = {
       for (const t of [o.t0, o.t1]) { const r = new THREE.Mesh(new THREE.TorusGeometry(o.HW + 1.3, 1, 6, 22, Math.PI), ring); const [x, z] = o.at(t, 0); r.position.set(x, 7.4, z); r.rotation.y = o.rotY + Math.PI / 2; r.scale.set(1, .6, 1); st.add(r); }
       along(o, 6, (t, k) => { for (const sd of [-1, 1]) if ((k + (sd > 0)) % 2) { const cap = new THREE.Mesh(new THREE.SphereGeometry(.6, 8, 5, 0, Math.PI * 2, 0, Math.PI / 2), glow[k % 3]); const [x, z] = o.at(t, sd * (o.HW - .3)); cap.position.set(x, 2 + (k % 3), z); st.add(cap); } });
       o.bake(st, o.scene); } },
+  // v26 School Halls: the locker hallway straight through Tempo Middle School (lockers, ceiling lights, posters, trophy case)
+  hallway: { wallH: 8, edge: 0xff8a2a, post: 0x1a2a6a, signDraw: sign('#1a2a6a', '#ff8a2a', '#fff', 'bold 40px Arial Black, Impact'),
+    floor: ct => ct(64, 64, g => { for (let y = 0; y < 64; y += 16) for (let x = 0; x < 64; x += 16) { g.fillStyle = (x + y) % 32 ? '#e8e4d8' : '#3a5a9a'; g.fillRect(x, y, 16, 16); } speckle(g, 64, 64, 60, ['rgba(255,255,255,.2)'], 1); }, true),
+    wall: ct => ct(128, 64, g => { const C = ['#ff8a2a', '#2a5ab0']; for (let x = 0; x < 128; x += 16) { g.fillStyle = C[(x / 16) % 2]; g.fillRect(x, 4, 15, 50); g.fillStyle = 'rgba(0,0,0,.35)'; for (let y = 8; y < 20; y += 3) g.fillRect(x + 4, y, 8, 1); g.fillStyle = '#ddd'; g.fillRect(x + 11, 28, 2, 6); }
+      g.fillStyle = '#e8e0d0'; g.fillRect(0, 54, 128, 10); g.fillStyle = '#d8d0c0'; g.fillRect(0, 0, 128, 4); }, true),
+    deco(o) { const { THREE } = o, st = new THREE.Group(), ceil = new THREE.MeshLambertMaterial({ color: 0xe8e8e0 }), lit = new THREE.MeshBasicMaterial({ color: 0xf8fff0 }), post = [0xffd34d, 0x40c8ff, 0xff5ad0, 0x7aff6a].map(c => new THREE.MeshBasicMaterial({ color: c }));
+      const glass = new THREE.MeshBasicMaterial({ color: 0xbfe8ff, transparent: true, opacity: .35 }), gold = new THREE.MeshStandardMaterial({ color: 0xffc040, metalness: .8, roughness: .3 }), wood = new THREE.MeshLambertMaterial({ color: 0x8a5a2a });
+      box(o, st, ceil, o.HW * 2 + 3, .6, (o.t1 - o.t0) * o.L, (o.t0 + o.t1) / 2, 0, 8.3);
+      along(o, 7, (t, k) => { box(o, st, lit, 4, .12, 1.2, t, 0, 7.95); for (const sd of [-1, 1]) if ((k + (sd > 0)) % 3 === 0) box(o, st, post[(k + (sd > 0 ? 2 : 0)) % 4], .06, 2.2, 1.7, t, sd * (o.HW - .02), 4.4); });
+      // trophy case in the middle of the right-hand wall
+      { const t = (o.t0 + o.t1) / 2; box(o, st, wood, .8, 1, 6, t, o.HW - .5, .5); box(o, st, glass, .7, 3, 6, t, o.HW - .5, 2.5); for (let k = -2; k <= 2; k++) { const c = box(o, st, gold, .3, .8 + (k + 2) % 2 * .5, .3, t + k * 1.1 / o.L, o.HW - .5, 1.6); } }
+      o.bake(st, o.scene); } },
+  // v26 Drumline Canyon: a narrow slot canyon, wavy sandstone walls open to the sky, with drum-shaped boulders and echo signs
+  slot: { wallH: 15, edge: 0xffe0a0, post: 0x8a3a1a, signDraw: sign('#7a2a10', '#ffe0a0', '#f0b070', 'bold 40px Georgia, serif'),
+    floor: ct => ct(64, 64, g => { g.fillStyle = '#d8945a'; g.fillRect(0, 0, 64, 64); speckle(g, 64, 64, 240, ['#b86a3a', '#f0c090'], 2); g.strokeStyle = 'rgba(255,255,255,.18)'; for (let y = 6; y < 64; y += 14) { g.beginPath(); for (let x = 0; x <= 64; x += 8) g.lineTo(x, y + Math.sin(x / 9) * 3); g.stroke(); } }, true),
+    wall: ct => ct(64, 128, g => { for (let y = 0; y < 128; y += 6) { g.fillStyle = `hsl(${16 + (y * 7) % 12},${50 + (y % 18)}%,${36 + (y * 13) % 20}%)`; g.beginPath(); g.moveTo(0, y); for (let x = 0; x <= 64; x += 8) g.lineTo(x, y + Math.sin(x / 10 + y) * 2); g.lineTo(64, y + 7); g.lineTo(0, y + 7); g.fill(); } }, true),
+    deco(o) { const { THREE } = o, st = new THREE.Group(), rock = new THREE.MeshLambertMaterial({ color: 0xa8502a }), rock2 = new THREE.MeshLambertMaterial({ color: 0xd08850 }), skin = new THREE.MeshLambertMaterial({ color: 0xf4e8d0 }), rim = new THREE.MeshLambertMaterial({ color: 0xc8c8d0 });
+      along(o, 12, (t, k) => { for (const sd of [-1, 1]) { const m = box(o, st, k % 2 ? rock : rock2, 3, 4 + (k * 7) % 5, 6, t, sd * (o.HW + 1.6), 14 + (k % 3)); m.rotation.z = sd * .25; } if (k % 2) { const m = box(o, st, rock, o.HW * 2 + 6, 1.4, 2.4, t, 0, 16.5); m.rotation.x = .1; } });
+      along(o, 15, (t, k) => { if (k % 2) return; const sd = k % 4 ? 1 : -1, [x, z] = o.at(t, sd * (o.HW - .6)); const d = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 1.4, 12), rock2); d.position.set(x, .7, z); st.add(d); const h = new THREE.Mesh(new THREE.CylinderGeometry(1.02, 1.02, .1, 12), skin); h.position.set(x, 1.42, z); st.add(h); const r = new THREE.Mesh(new THREE.TorusGeometry(1.02, .08, 4, 14), rim); r.rotation.x = Math.PI / 2; r.position.set(x, 1.4, z); st.add(r); });
+      o.bake(st, o.scene); } },
+  // v26 Thunder Volcano: a lava tube under the ridge — basalt dome, glowing lava channels each side, pulsing light
+  lavatube: { wallH: 7, edge: 0xff7a2a, post: 0x2a1a1a, signDraw: sign('#2a1010', '#ffb040', '#ff5a1a', 'bold 40px Arial Black, Impact'),
+    floor: ct => ct(64, 64, g => { g.fillStyle = '#1e1a1e'; g.fillRect(0, 0, 64, 64); speckle(g, 64, 64, 160, ['#2e282c', '#120e10'], 3); g.strokeStyle = 'rgba(255,120,30,.6)'; g.lineWidth = 2; g.beginPath(); g.moveTo(10, 0); g.lineTo(22, 30); g.lineTo(14, 64); g.stroke(); }, true),
+    wall: ct => ct(64, 64, g => { g.fillStyle = '#2a2226'; g.fillRect(0, 0, 64, 64); speckle(g, 64, 64, 120, ['#3a3034', '#16121a'], 4); g.strokeStyle = '#ff6a1a'; g.lineWidth = 2; for (let k = 0; k < 4; k++) { g.beginPath(); let x = k * 16 + 4, y = 0; g.moveTo(x, y); while (y < 64) { y += 8; x += (R() - .5) * 8; g.lineTo(x, y); } g.stroke(); } }, true),
+    deco(o) { const { THREE } = o, st = new THREE.Group(), basalt = new THREE.MeshLambertMaterial({ color: 0x2a2226, side: THREE.DoubleSide }), lava = new THREE.MeshBasicMaterial({ color: 0xff6a1a }), hot = new THREE.MeshBasicMaterial({ color: 0xffc04a });
+      const len = (o.t1 - o.t0) * o.L, [cx, cz] = o.at((o.t0 + o.t1) / 2, 0); const half = new THREE.Mesh(new THREE.CylinderGeometry(o.HW + 1.2, o.HW + 1.2, len, 16, 1, true, -Math.PI / 2, Math.PI), basalt);
+      half.rotation.set(Math.PI / 2, 0, 0); half.scale.set(1, 1, .7); const grp = new THREE.Group(); grp.add(half); grp.position.set(cx, 7, cz); grp.rotation.y = o.rotY; o.scene.add(grp);
+      for (const sd of [-1, 1]) { box(o, st, lava, .9, .08, len * .96, (o.t0 + o.t1) / 2, sd * (o.HW - .7), .2); box(o, st, hot, .3, .1, len * .96, (o.t0 + o.t1) / 2, sd * (o.HW - .7), .22); }
+      along(o, 9, (t, k) => { if (k % 2) box(o, st, hot, 1.4, .3, .8, t, 0, 11.7); });
+      o.bake(st, o.scene); return (dt) => { const k = .75 + .25 * Math.sin(performance.now() / 300); lava.color.setRGB(1, .42 * k, .1 * k); }; } },
 };
 // ---------- rolling hill hazards (built along +Y; caller turns the axis sideways) ----------
 export const ROLLERS = {
+  basketball(THREE, ct, inner) { inner.add(new THREE.Mesh(new THREE.SphereGeometry(1.45, 16, 12), new THREE.MeshLambertMaterial({ map: ct(128, 64, g => { g.fillStyle = '#e8702a'; g.fillRect(0, 0, 128, 64); speckle(g, 128, 64, 300, ['rgba(0,0,0,.12)'], 1); g.strokeStyle = '#1a1010'; g.lineWidth = 3; g.beginPath(); g.moveTo(0, 32); g.lineTo(128, 32); g.moveTo(32, 0); g.lineTo(32, 64); g.moveTo(96, 0); g.lineTo(96, 64); g.stroke(); g.beginPath(); g.ellipse(64, 32, 18, 32, 0, 0, 7); g.stroke(); }) }))); },
+  snaredrum(THREE, ct, inner) { const shell = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 1.3, 20), new THREE.MeshLambertMaterial({ map: ct(64, 16, g => { g.fillStyle = '#ff5a6a'; g.fillRect(0, 0, 64, 16); g.fillStyle = '#ffd34d'; for (let x = 0; x < 64; x += 16) g.fillRect(x, 6, 8, 4); }) })); inner.add(shell);
+    for (const y of [-.67, .67]) { const h = new THREE.Mesh(new THREE.CircleGeometry(1.45, 20), new THREE.MeshLambertMaterial({ color: 0xfaf4e8, side: THREE.DoubleSide })); h.rotation.x = Math.PI / 2; h.position.y = y; inner.add(h); const r = new THREE.Mesh(new THREE.TorusGeometry(1.52, .12, 5, 20), new THREE.MeshLambertMaterial({ color: 0xd8dce4 })); r.rotation.x = Math.PI / 2; r.position.y = y; inner.add(r); } },
+  lavarock(THREE, ct, inner) { const r = new THREE.Mesh(new THREE.DodecahedronGeometry(1.5, 0), new THREE.MeshLambertMaterial({ color: 0x2a2024, emissive: 0x5a1a00 })); inner.add(r); const c = new THREE.Mesh(new THREE.IcosahedronGeometry(1.25, 0), new THREE.MeshBasicMaterial({ color: 0xff6a1a })); c.rotation.set(.4, .7, .2); inner.add(c); },
   bassdrum(THREE, ct, inner) { const shell = new THREE.Mesh(new THREE.CylinderGeometry(1.5, 1.5, 1.6, 20), new THREE.MeshLambertMaterial({ map: ct(64, 16, g => { g.fillStyle = '#c0203a'; g.fillRect(0, 0, 64, 16); g.fillStyle = '#fff'; for (let x = 0; x < 64; x += 8) { g.beginPath(); g.moveTo(x, 2); g.lineTo(x + 4, 14); g.lineTo(x + 8, 2); g.stroke(); } }) })); inner.add(shell);
     for (const y of [-.82, .82]) { const h = new THREE.Mesh(new THREE.CircleGeometry(1.45, 20), new THREE.MeshLambertMaterial({ color: 0xf6f0e0, side: THREE.DoubleSide })); h.rotation.x = Math.PI / 2; h.position.y = y; inner.add(h); const r = new THREE.Mesh(new THREE.TorusGeometry(1.5, .1, 5, 20), new THREE.MeshLambertMaterial({ color: 0xffd34d })); r.rotation.x = Math.PI / 2; r.position.y = y; inner.add(r); } },
   beachball(THREE, ct, inner) { inner.add(new THREE.Mesh(new THREE.SphereGeometry(1.5, 16, 12), new THREE.MeshLambertMaterial({ map: ct(128, 64, g => { ['#ff4a4a', '#fff', '#3a8aff', '#fff', '#ffd34d', '#fff'].forEach((c, i) => { g.fillStyle = c; g.fillRect(i * 128 / 6, 0, 128 / 6 + 1, 64); }); }) }))); },

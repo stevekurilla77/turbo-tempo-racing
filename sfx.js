@@ -3,8 +3,8 @@
 import { createVoices } from './music.js';
 export const BEAT = .5; // jingle grid: 8 beats = 4 s; digits 3-2-1 on beats 2, 4, 6; GO on beat 8
 export const GO_AT = 8 * BEAT;
-const KEY = { brass: 52, ghost: 55, stadium: 58, water: 53, bayou: 53, reed: 50 }; // E, G, Bb, F, F, D
-const LEAD = { brass: 'trumpet', ghost: 'piano', stadium: 'trumpet', water: 'steel', bayou: 'clarinet', reed: 'flute' };
+const KEY = { brass: 52, ghost: 55, stadium: 58, water: 53, bayou: 53, reed: 50, school: 48, canyon: 57, volcano: 50 }; // E, G, Bb, F, F, D, C, A, D
+const LEAD = { brass: 'trumpet', ghost: 'piano', stadium: 'trumpet', water: 'steel', bayou: 'clarinet', reed: 'flute', school: 'xylo', canyon: 'marimba', volcano: 'trombone' };
 // event helpers: n(beat, voice, semitone above key, length in beats, vol); d(beat, drum, vel)
 const n = (b, v, s, l, vol) => ({ b, v, s, l, vol }), d = (b, k, vel = 1) => ({ b, k, vel });
 const chordAt = (b, v, ss, l, vol) => ss.map(s => n(b, v, s, l, vol));
@@ -38,6 +38,25 @@ function jingle(id) {
     [-12, -8, -5, -2, -7, -3, 0, -1].forEach((s, b) => { E.push(n(b, 'tuba', s, .8, .12)); E.push(d(b + .6, 'brush', .5)); E.push(d(b, 'kick', .5)); });
     for (let k = 0; k < 16; k++) E.push(d(7 + k / 16, 'snare', .2 + k * .03));
     E.push(...chordAt(8, 'clarinet', [28, 31, 34], 2.2, .06), ...chordAt(8, 'sax', [16, 22], 2.2, .06), ...chordAt(8, 'trombone', [4, 10], 2.2, .06), n(8, 'tuba', -12, 2, .13), d(8, 'crash'), d(8, 'kick')); }
+  else if (id === 'school') { // pep band: school bell, xylophone climb over tuba + claps, high-snare cadence, C6 fight-song hit
+    for (let k = 0; k < 12; k++) E.push(n(k * .125, 'bells', 31 + (k % 2) * 4, .12, .05));
+    const arp = [0, 4, 7, 12, 4, 7, 12, 16, 5, 9, 12, 17, 7, 11, 14, 19]; arp.forEach((s, k) => E.push(n(1.5 + k * .375, 'xylo', 12 + s, .3, .12)));
+    [0, 0, 5, 7, 0, 5, 7, 7].forEach((s, b) => { E.push(n(b, 'tuba', -12 + s, .45, .12)); if (b % 2) E.push(d(b, 'clap', .8)); E.push(d(b, 'kick', b % 2 ? .5 : .8)); });
+    for (let b = 2; b < 8; b += .25) E.push(d(b, 'snareHi', ((b * 4) % 4 === 0 ? .7 : .35) + (b > 7 ? .3 : 0)));
+    E.push(...chordAt(8, 'trumpet', [24, 28, 31, 33], 2.2, .05), ...chordAt(8, 'xylo', [24, 28, 31, 36], 1, .12), n(8, 'tuba', -12, 2, .13), d(8, 'crash', 1.1), d(8, 'kick', 1.1), d(8, 'clap', 1)); }
+  else if (id === 'canyon') { // drumline cadence: quad sweeps, split bass-drum melody, marimba call + canyon echo, snare roll into an Am(add9) hit
+    [[0, 'q1'], [.25, 'q2'], [.5, 'q3'], [.75, 'q4'], [2, 'q4'], [2.25, 'q3'], [2.5, 'q2'], [2.75, 'q1'], [4, 'q1'], [4.125, 'q2'], [4.25, 'q3'], [4.375, 'q4'], [6, 'q4'], [6.125, 'q3'], [6.25, 'q2'], [6.375, 'q1']].forEach(([b, k]) => E.push(d(b, k, .8)));
+    [[1, 'bd1'], [1.25, 'bd2'], [1.5, 'bd3'], [3, 'bd3'], [3.25, 'bd2'], [3.5, 'bd1'], [5, 'bd1'], [5.5, 'bd3'], [5.75, 'bd2']].forEach(([b, k]) => E.push(d(b, k, 1)));
+    for (let b = 0; b < 7; b += .5) E.push(d(b, 'click', .4)); for (let k = 0; k < 24; k++) E.push(d(7 + k / 24, 'snare', .15 + k * .03));
+    const call = [12, 15, 19, 17, 15, 12]; call.forEach((s, k) => { E.push(n(.5 + k * .5, 'marimba', s + 12, .4, .14)); E.push(n(1.25 + k * .5, 'marimba', s + 12, .4, .05)); });
+    E.push(n(4.5, 'trombone', 0, .5, .07), n(5, 'trombone', 3, .5, .07), n(5.5, 'trombone', 7, 1, .08));
+    E.push(...chordAt(8, 'marimba', [12, 15, 19, 26], 1, .14), ...chordAt(8, 'trombone', [0, 7, 12], 2.2, .06), ...chordAt(8, 'horn', [15, 19], 2, .05), d(8, 'crash', 1.1), d(8, 'bd3', 1.2), d(8, 'q4', 1)); }
+  else if (id === 'volcano') { // thunder drums: distant thunder, taiko booms on every beat, rising timpani roll, low trombone riff, Dm hit + rumble
+    E.push(d(0, 'thunder', 1)); for (let b = 0; b < 8; b++) { E.push(d(b, 'taiko', b % 2 ? .7 : 1)); if (b % 2) E.push(d(b + .5, 'taiko', .5)); }
+    for (let k = 0; k < 32; k++) E.push(n(4 + k * .125, 'timpani', k < 16 ? -12 : -5, .15, .05 + k * .004));
+    [[1, 0], [1.5, 3], [2, 5], [2.5, 6], [3, 7], [5, 0], [5.5, 3], [6, 5], [6.5, 8], [7, 7], [7.5, 10]].forEach(([b, s]) => E.push(n(b, 'trombone', s - 12, .45, .09)));
+    E.push(d(6, 'swell', .9)); for (let k = 0; k < 8; k++) E.push(d(7 + k / 8, 'tom', .5 + k * .06));
+    E.push(...chordAt(8, 'trombone', [-12, -5, 0, 3], 2.4, .065), ...chordAt(8, 'trumpet', [12, 15, 19], 2, .05), n(8, 'timpani', -12, 1.5, .2), n(8, 'tuba', -24, 2.2, .12), d(8, 'thunder', .9), d(8, 'crash', 1.2), d(8, 'taiko', 1.3)); }
   else { // reed: airy flute scale runs, bassoon pulses, oboe call, harp glissando, Dadd9 hit
     const sc = [0, 2, 4, 5, 7, 9, 11, 12, 14, 16, 17, 19, 21, 23, 24];
     for (let k = 0; k < 8; k++) E.push(n(k * .25, 'flute', 24 + sc[k], .25, .06)); for (let k = 0; k < 8; k++) E.push(n(2.5 + k * .25, 'flute', 24 + sc[k + 3], .25, .06));
@@ -105,6 +124,7 @@ export function createRaceSfx(AC, out, trackId) {
       else if (type === 'clarinet') { for (let i = 0; i < 8; i++) V.clarinet(mf(76 + (i % 2) * 2), t + i * .045, .05, .07 * k); }
       else if (type === 'horn') { V.horn(mf(55), t, .25, .1 * k); V.horn(mf(62), t + .2, .4, .1 * k); }
       else { [0, 2, 4, 7, 9, 12, 14, 16].forEach((s, i) => V.marimba(mf(72 + s), t + i * .04, .1, .1 * k)); } },
+    gate(k) { if (!ok('gate')) return; hold('gate', .25); const t = AC.currentTime, ss = [[12, 19, 24], [14, 19, 26], [16, 21, 28], [19, 24, 31]][k % 4]; ss.forEach((s, i) => V.bells(mf(key + 12 + s), t + i * .05, .3, .06)); V[lead](mf(key + 24 + ss[2]), t + .12, .18, .05); },
     lap() { const t = AC.currentTime; [[0, 12], [1, 16], [2, 19], [3, 24]].forEach(([k, s]) => { V[lead](mf(key + 12 + s), t + k * .09, k === 3 ? .35 : .1, .07); }); V.bells(mf(key + 36), t + .27, .5, .07); D(t + .27, 'crash', .35); },
   };
   return api;
