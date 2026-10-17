@@ -8,7 +8,7 @@ const st = p => p.evaluate(() => ({ state: __tt.race.state, t: +__tt.race.t.toFi
 const ok = (c, m) => { console.log(c ? 'PASS' : 'FAIL', m); if (!c) process.exitCode = 1; };
 { // laptop single race
   const p = await b.newPage({ viewport: { width: 1280, height: 720 } }); const e = errsOf(p); p.on('framenavigated', f => f === p.mainFrame() && console.log('NAV', f.url()));
-  await p.goto(base + '?track=bayou&nogate&autostart&car=sax&cb=' + Date.now()); await p.mouse.click(640, 360);
+  await p.goto(base + '?track=bayou&nogate&autostart&car=sax&cb=' + Date.now()); await p.mouse.click(640, 360); await p.evaluate(() => { window.__gasI = setInterval(() => { if (__tt.race.state === 'race' || __tt.race.state === 'count') { __tt.touch.gas = 1; const s = __tt.aiSteer(); __tt.touch.r = s > .3 ? 1 : 0; __tt.touch.l = s < -.3 ? 1 : 0; } }, 16); });
   await p.waitForFunction(() => __tt.race.state === 'race' && __tt.race.t > 9, null, { timeout: 90000 });
   await p.keyboard.down('ArrowUp'); await p.waitForTimeout(800);
   await p.keyboard.press('Escape'); await p.waitForTimeout(300); const a = await st(p); await p.waitForTimeout(1200); const a2 = await st(p);
