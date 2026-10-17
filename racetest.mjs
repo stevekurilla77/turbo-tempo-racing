@@ -58,7 +58,7 @@ if (mode === 'all' || mode === 'iphone') { // touch: tap START -> garage -> next
   const ui = await p.evaluate(() => ({ state: __tt.race.state, type: __tt.player.type, touchUI: __tt.touchUI, visible: [...document.querySelectorAll('#hud .btn')].filter(x => getComputedStyle(x).display !== 'none').map(x => x.id), keysHint: getComputedStyle(document.getElementById('keys')).display }));
   console.log('iphone sel', sel, JSON.stringify(ui));
   // drive using the same touch flags the ◀ ▶ / GAS buttons set
-  await p.evaluate(() => { setInterval(() => { const t = __tt.touch, s = __tt.aiSteer(); t.gas = 1; t.l = s < -.15 ? 1 : 0; t.r = s > .15 ? 1 : 0; }, 30); });
+  await p.evaluate(() => { __tt.botTouch = true; setInterval(() => { const t = __tt.touch, s = __tt.aiSteer(); t.gas = 1; t.l = s < -.15 ? 1 : 0; t.r = s > .15 ? 1 : 0; }, 30); });
   await p.waitForTimeout(6000); await p.screenshot({ path: `${PRE}iphone-hud.png` }); await p.screenshot({ path: `${PRE}minimap-iphone.png` }); console.log('iphone minimap', JSON.stringify(await mmOverlap(p)));
   await p.waitForFunction(() => __tt.finalLapShown > 0, null, { timeout: 250000, polling: 20 }); console.log('iphone final lap (natural trigger count)', await p.evaluate(() => __tt.finalLapShown), 'shot', JSON.stringify(await finalShot(p, `${PRE}final-lap-iphone.png`)));
   const d = await waitDone(p, 'iphone'); console.log('iphone done', JSON.stringify(d), JSON.stringify(await p.evaluate(() => ({ r: __tt.race.results, dashes: __tt.race.stats.dashes, tricks: __tt.race.stats.tricks }))));

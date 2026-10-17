@@ -525,7 +525,7 @@ const band = d => { race.band = Math.max(0, Math.min(1, race.band + d)); };
 const keys = {}, keySeen = {}, keyRep = {}; // v24 stuck-key guard: last keydown/repeat time per key, and whether it has auto-repeated
 const kc = e => e.code || ({ Left: 'ArrowLeft', Right: 'ArrowRight', Up: 'ArrowUp', Down: 'ArrowDown', Esc: 'Escape' }[e.key] || e.key || '');
 const KEY_GUARD = !Q.has('nokeyguard');
-function releaseInputs(why) { for (const k in keys) keys[k] = 0; for (const k in keyRep) keyRep[k] = 0; for (const k of ['l', 'r', 'brake', 'gas', 'drift', 'dash', 'dashPress']) touch[k] = 0; window.__tt.inputResets = (window.__tt.inputResets || 0) + 1; window.__tt.lastReset = why; }
+function releaseInputs(why) { for (const k in keys) keys[k] = 0; for (const k in keyRep) keyRep[k] = 0; for (const k of ['l', 'r', 'brake', 'gas', 'drift', 'dash', 'dashPress']) touch[k] = 0; if (typeof tz !== 'undefined') { tz.live = 0; tz.mouse = {}; tz.rects = null; for (const k in TZONES) $(TZONES[k]).classList.remove('on'); } window.__tt.inputResets = (window.__tt.inputResets || 0) + 1; window.__tt.lastReset = why; }
 // a key the browser says is held but which stopped auto-repeating (or whose keyup got swallowed, e.g. by a Cmd/Ctrl shortcut or a focus change) is released
 function keyWatchdog() { if (!KEY_GUARD) return; const now = performance.now(); for (const k in keys) if (keys[k] && now - (keySeen[k] || 0) > (keyRep[k] ? 550 : 1600)) { keys[k] = 0; keyRep[k] = 0; window.__tt.keyGuardReleases = (window.__tt.keyGuardReleases || 0) + 1; } }
 const touch = { l: 0, r: 0, brake: 0, dash: 0, gas: 0, drift: 0 }; window.__tt.touch = touch; window.__tt.keys = keys; window.__tt.releaseInputs = releaseInputs;
@@ -538,11 +538,31 @@ addEventListener('keydown', e => { if (race.state === 'paused') { pauseKey(e); r
   else if (race.state === 'garage') { if (e.code === 'ArrowLeft' || e.code === 'KeyA') pickGarage(-1); else if (e.code === 'ArrowRight' || e.code === 'KeyD') pickGarage(1); else if (e.code === 'Enter' || e.code === 'Space') raceFromGarage(); else if (e.code === 'Escape') { race.state = 'menu'; $('garage').style.display = 'none'; $('overlay').style.display = 'flex'; } } });
 addEventListener('keyup', e => { const c = kc(e); keys[c] = 0; keyRep[c] = 0; if (e.code !== c) keys[e.code] = 0; if (e.key === 'Meta' || e.key === 'OS') releaseInputs('meta-up'); }, true);
 for (const [tgt, ev] of [[window, 'blur'], [window, 'pagehide'], [window, 'contextmenu'], [document, 'visibilitychange']]) tgt.addEventListener(ev, () => releaseInputs(ev), true);
-function holdBtn(id, k) { const el = $(id), ids = new Set();
-  const upd = () => { touch[k] = ids.size ? 1 : 0; el.classList.toggle('on', ids.size > 0); };
-  el.addEventListener('pointerdown', e => { e.preventDefault(); ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (_) {} if (k === 'dash') touch.dashPress = 1; initAudio(); upd(); });
-  const off = e => { ids.delete(e.pointerId); upd(); };
-  el.addEventListener('pointerup', off); el.addEventListener('pointercancel', off); el.addEventListener('lostpointercapture', off);
+// v25 touch controls: no per-button finger bookkeeping any more. On EVERY touch event (start/move/end/cancel) the held state of each
+// on-screen control is recomputed from the complete live finger list (e.touches) against the buttons' on-screen rectangles, so a control is
+// held only while a live finger is really over it: sliding off, lifting fingers in any order, iOS gesture cancels and overlays can't leave it stuck.
+const TZONES = { l: 'bl', r: 'br', gas: 'bgas', brake: 'bbrake', drift: 'bdrift', dash: 'bdash' };
+const tz = { live: 0, last: 0, mouse: {}, rects: null, rectT: 0 };
+function zoneRects() { const now = performance.now(); if (tz.rects && now - tz.rectT < 250) return tz.rects; const R = {}, hudOn = $('hud').style.display !== 'none';
+  for (const k in TZONES) { const el = $(TZONES[k]); if (!hudOn || !el.offsetParent) continue; const r = el.getBoundingClientRect(); if (r.width < 4) continue; const pad = 10; R[k] = [r.left - pad, r.top - pad, r.right + pad, r.bottom + pad]; }
+  tz.rects = R; tz.rectT = now; return R; }
+function setZone(k, on) { if (touch[k] === (on ? 1 : 0)) return; touch[k] = on ? 1 : 0; $(TZONES[k]).classList.toggle('on', !!on); }
+function recomputeTouches(list) { const R = zoneRects(), held = {}; for (const t of list) for (const k in R) { const r = R[k]; if (t.clientX >= r[0] && t.clientX <= r[2] && t.clientY >= r[1] && t.clientY <= r[3]) held[k] = 1; }
+  if (held.l && held.r) { held.l = held.r = 0; } // a thumb across both arrows means neither
+  for (const k in TZONES) setZone(k, held[k] || tz.mouse[k]); tz.live = list.length; tz.last = performance.now(); }
+function onTouchEv(e) { const onCtl = e.target && e.target.closest && e.target.closest('#hud .btn');
+  if (e.type === 'touchstart') { tz.rects = null; const R = zoneRects(); for (const t of e.changedTouches) { const r = R.dash; if (r && t.clientX >= r[0] && t.clientX <= r[2] && t.clientY >= r[1] && t.clientY <= r[3]) touch.dashPress = 1; } if (onCtl) initAudio(); }
+  recomputeTouches(e.touches); if (onCtl && e.cancelable) e.preventDefault(); window.__tt.touchEvents = (window.__tt.touchEvents || 0) + 1; }
+for (const ev of ['touchstart', 'touchmove', 'touchend', 'touchcancel']) document.addEventListener(ev, onTouchEv, { passive: false, capture: true });
+// touch watchdog (every frame): no live finger for >300 ms, or the controls are hidden (pause, results, menus) -> nothing can be held
+function touchWatchdog() { if (window.__tt.botTouch) return; const any = touch.l || touch.r || touch.gas || touch.brake || touch.drift; if (!any) return;
+  const mouse = Object.values(tz.mouse).some(Boolean), hidden = $('hud').style.display === 'none' || race.state === 'paused';
+  if (hidden || (!mouse && tz.live === 0 && performance.now() - tz.last > 300)) { for (const k in TZONES) setZone(k, 0); tz.mouse = {}; window.__tt.touchGuardReleases = (window.__tt.touchGuardReleases || 0) + 1; } }
+// mouse / pen on a touch-screen laptop: plain pointer handling (touch pointers are handled above)
+function holdBtn(id, k) { const el = $(id);
+  el.addEventListener('pointerdown', e => { if (e.pointerType === 'touch') return; e.preventDefault(); tz.mouse[k] = 1; tz.last = performance.now(); if (k === 'dash') touch.dashPress = 1; initAudio(); setZone(k, 1); });
+  const off = e => { if (e.pointerType === 'touch') return; tz.mouse[k] = 0; setZone(k, 0); };
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave', 'lostpointercapture']) el.addEventListener(ev, off);
   el.addEventListener('contextmenu', e => e.preventDefault()); }
 holdBtn('bl', 'l'); holdBtn('br', 'r'); holdBtn('bbrake', 'brake'); holdBtn('bdash', 'dash'); holdBtn('bgas', 'gas'); holdBtn('bdrift', 'drift');
 
@@ -793,6 +813,7 @@ function stepCar(c, dt) {
   if (c.isPlayer && MISTAKES && racing && c.lap >= 1 && c.lap <= MISTAKES && !c['mk' + c.lap] && c.idx > 300 && c.idx < 340 && !c.air) { c['mk' + c.lap] = 1; c.v = 3; c.boost = 0; c.dash = 0; c.warpT = 0; c.hitT = 0; c.drift = 0; window.__tt.mistakes = (window.__tt.mistakes || 0) + 1; }
   if (!racing) { if (!c.finished || race.state !== 'done' && race.state !== 'race') steer = 0; else steer = Math.max(-.6, Math.min(.6, steer)); driftIn = 0; trickIn = 0; if (!c.finished) gas = 0; else gas = .3; } // v20: finished cars keep following the road (no rolling off into storefronts)
   if (c.wobT > 0) { c.wobT -= dt; steer = Math.max(-1, Math.min(1, steer + Math.sin(race.t * 22 + c.slot) * .6)); } // Instrument Blast rattle
+  if (c.isPlayer) window.__tt.steerInput = steer;
   // steering smoothing
   if (c.isPlayer && !AUTOPILOT) {
     const rate = steer === 0 ? STEER.recenter : (Math.sign(steer) !== Math.sign(c.steer) && c.steer !== 0 ? STEER.reverse : STEER.easeIn);
@@ -1158,7 +1179,7 @@ function frame(now) {
   requestAnimationFrame(frame);
   let dt = Math.min(.1, (now - last) / 1000) * TIMESCALE; last = now; acc += dt;
   try {
-    keyWatchdog(); if (race.state === 'paused') acc = 0; else while (acc > 1 / 60) { sim(1 / 60); acc -= 1 / 60; }
+    keyWatchdog(); touchWatchdog(); if (race.state === 'paused') acc = 0; else while (acc > 1 / 60) { sim(1 / 60); acc -= 1 / 60; }
     camDt = dt; CITY.update(dt, performance.now() / 1000); if (ALLEY.anim) ALLEY.anim(dt); schedMusic(); if (race.state === 'garage') { hud(); renderGarage(dt); } else { syncMeshes(); hud(); }
     if (flashT > 0) { flashT -= dt / TIMESCALE; if (flashT <= 0) $('msg').textContent = ''; }
     if (toastT > 0) { toastT -= dt / TIMESCALE; if (toastT <= 0) $('toast').style.display = 'none'; }
